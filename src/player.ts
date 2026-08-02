@@ -42,13 +42,14 @@ const FLURRY_COST = 20;     // 七十二斩
 const FLURRY_TIME = 36;     // 9 段连斩（每 4 帧一段）
 const ORB_COST = 25;        // 水魔爆
 
-const ROPE_SPEED = 14;    // 绳头飞行速度
+const ROPE_SPEED = 14;    // 绳头飞行速度（快于玩家甩出速度，保证接力命中）
 const ROPE_MAX = 340;     // 绳索最大长度
 const REHOOK_CD = 10;     // 松钩后到再次抛索的间隔（按住 I 时自动接力）
-const SWING_PUMP = 0.35;  // 手动摆荡助力（A/D，修練场要求明确的方向操控感）
-const SWING_AUTO = 0.2;   // 共振泵摆（沿切向运动方向加速，振幅自然增长）
-const SWING_KICK = 2.5;   // 钩住瞬间朝目标侧的初速度
-const SWING_MAX = 12;
+const SWING_PUMP = 0.3;   // 手动摆荡助力（A/D，自己掌握节奏）
+const SWING_AUTO = 0.1;   // 共振泵摆（轻微保活，振幅缓慢增长，不催命）
+const SWING_KICK = 1.5;   // 钩住瞬间朝目标侧的初速度
+const SWING_MAX = 7;      // 摆速上限（慢而稳，留思考时间）
+const RELEASE_MIN_V = 3.5; // 自动松手的最小甩出速度（小振幅不甩人）
 
 type State = 'idle' | 'run' | 'air' | 'attack' | 'launcher' | 'flurry' | 'dash' | 'grapple' | 'hit' | 'dead';
 
@@ -255,7 +256,7 @@ export class Player {
     this.rope = null;
     this.grappleCd = REHOOK_CD;
     this.airJumps = 1; // 摆荡后补一次二段跳
-    if (boost) this.vy = Math.min(this.vy, -4.5);
+    if (boost) this.vy = Math.min(this.vy, -3.5);
     this.facing = Math.sign(this.vx) || this.facing; // 朝向跟随飞跃方向（接力瞄准用）
     w.effects.puff(this.centerX, this.centerY);
   }
@@ -309,11 +310,11 @@ export class Player {
       this.vy -= vr * ny;
     }
 
-    // 自动松手：荡过支点到另一侧、升至接近最高点、且正朝目标侧运动时飞出
-    // （回程经过支点不松手，否则会把人甩回头路）
+    // 自动松手：荡过支点另一侧、升至接近最高点、且甩出速度足够时才飞出
+    // （小振幅不打扰——让你安心荡；W 可随时主动松手）
     const sideNow = Math.sign(this.centerX - r.ax) || r.side;
-    if (sideNow !== r.side && this.vy > -1 && this.vx * -r.side > 0.5) {
-      this.vx *= 1.1;
+    if (sideNow !== r.side && this.vy > -1 && this.vx * -r.side > RELEASE_MIN_V) {
+      this.vx *= 1.05;
       this.detach(w, true);
       return;
     }

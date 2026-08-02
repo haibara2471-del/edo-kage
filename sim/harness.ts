@@ -111,8 +111,10 @@ function ropeGap(gapIndex: 1 | 2): Result {
   let attached = false;
   let hadRope = false;
   let landed = false;
+  let ticks = 0;
   const trace: string[] = [];
   for (let i = 0; i < 500; i++) {
+    ticks = i;
     step(world);
     if (player.rope) attached = true;
     if (player.rope && !hadRope && player.rope.phase === 'attach') {
@@ -128,11 +130,11 @@ function ropeGap(gapIndex: 1 | 2): Result {
     }
   }
   input.release('grapple');
-  const pass = attached && landed && player.state !== 'dead';
+  const pass = attached && landed && player.state !== 'dead' && ticks >= 80;
   return {
     name: `绳索过沟${gapIndex}（按住 I，真实代码）`,
     pass,
-    detail: `落点x=${player.centerX.toFixed(0)}(目标>${targetX}) 状态=${player.state} 轨迹=${trace.join(' ')}`,
+    detail: `落点x=${player.centerX.toFixed(0)}(目标>${targetX}) 用时${ticks}t(要求≥80，不过快) 状态=${player.state} 轨迹=${trace.join(' ')}`,
   };
 }
 
