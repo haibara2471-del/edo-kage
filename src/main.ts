@@ -37,6 +37,8 @@ const world: World = {
   enemies: [],
   projectiles: [],
   arrows: [],
+  orbs: [],
+  clouds: [],
   codex,
   camX: 0,
 };
@@ -119,6 +121,12 @@ function tick(): void {
   for (const a of world.arrows) a.update(stage);
   world.arrows = world.arrows.filter((a) => !a.dead);
 
+  for (const o of world.orbs) o.update(world);
+  world.orbs = world.orbs.filter((o) => !o.dead);
+
+  for (const c of world.clouds) c.update(world);
+  world.clouds = world.clouds.filter((c) => !c.dead);
+
   resolveCombat(world);
   if (waves.enabled) waves.update(world);
   effects.update();
@@ -153,6 +161,8 @@ function render(): void {
   waves.draw(ctx, stage.groundY, frameCount);
   for (const p of world.projectiles) p.draw(ctx);
   for (const a of world.arrows) a.draw(ctx);
+  for (const o of world.orbs) o.draw(ctx);
+  for (const c of world.clouds) c.draw(ctx);
   for (const e of world.enemies) e.draw(ctx);
   player.draw(ctx);
   effects.drawWorld(ctx);

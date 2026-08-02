@@ -1,4 +1,4 @@
-export type Action = 'left' | 'right' | 'jump' | 'attack' | 'shuriken' | 'dash' | 'grapple' | 'codex';
+export type Action = 'left' | 'right' | 'jump' | 'attack' | 'shuriken' | 'dash' | 'grapple' | 'codex' | 'skillU' | 'skillH' | 'skillO';
 
 const KEYMAP: Record<string, Action> = {
   KeyA: 'left', ArrowLeft: 'left',
@@ -9,6 +9,9 @@ const KEYMAP: Record<string, Action> = {
   KeyL: 'dash',
   KeyI: 'grapple',
   KeyB: 'codex',
+  KeyU: 'skillU',
+  KeyH: 'skillH',
+  KeyO: 'skillO',
 };
 
 const BUFFER_MS = 150; // 输入缓冲窗口：按键后 150ms 内可被消费

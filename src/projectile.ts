@@ -1,4 +1,7 @@
 import type { Rect } from './types';
+import { rectsOverlap } from './types';
+import { explodeOrb } from './combat';
+import type { World } from './world';
 
 /** 手里剑：直线飞行（扇形三连时带纵向分量），旋转动画，命中或超时消失 */
 export class Projectile {
@@ -38,19 +41,24 @@ export class Projectile {
   }
 }
 
-/** 敌方箭矢：水平射出，带轻微下坠（远距离能威胁地面目标） */
+/** 敌方箭矢/钩索：水平射出，带轻微下坠（远距离能威胁地面目标） */
 export class Arrow {
   dead = false;
   vy = 0;
   readonly w = 14;
   readonly h = 3;
-  readonly dmg = 8;
+  readonly dmg: number;
+  readonly pull: boolean;
 
   constructor(
     public x: number,
     public y: number,
     public vx: number,
-  ) {}
+    opts: { dmg?: number; pull?: boolean } = {},
+  ) {
+    this.dmg = opts.dmg ?? 8;
+    this.pull = opts.pull ?? false;
+  }
 
   get rect(): Rect {
     return { x: this.x - 7, y: this.y - 1.5, w: 14, h: 3 };
@@ -76,6 +84,20 @@ export class Arrow {
     const dir = Math.sign(this.vx);
     const tx = this.x - dir * 7; // 箭尾
     const ty = this.y - this.vy * 4;
+    if (this.pull) {
+      // 钩索：铁钩 + 锁链
+      ctx.strokeStyle = '#8a94a8';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(tx, ty);
+      ctx.lineTo(this.x, this.y);
+      ctx.stroke();
+      ctx.fillStyle = '#c8d0e0';
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+      return;
+    }
     ctx.strokeStyle = '#c09860';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -86,6 +108,68 @@ export class Arrow {
     ctx.fillRect(this.x - 1.5, this.y - 1.5, 3, 3);
     ctx.fillStyle = '#e05060'; // 尾羽
     ctx.fillRect(tx - 1.5, ty - 2.5, 3, 2);
+  }
+}
+
+/** 水月の術：缓慢前行的水弹，二段施法/命中/到限时引爆（AoE） */
+export class WaterOrb {
+  dead = false;
+  detonate = false;
+  life = 200;
+  t = 0;
+  readonly w = 16;
+  readonly h = 16;
+
+  constructor(
+    public x: number,
+    public y: number,
+    public vx: number,
+  ) {}
+
+  get rect(): Rect {
+    return { x: this.x - 8, y: this.y - 8, w: 16, h: 16 };
+  }
+
+  get radius(): number {
+    return Math.min(16, 8 + this.t * 0.05);
+  }
+
+  update(w: World): void {
+    this.t++;
+    this.x += this.vx;
+    if (--this.life <= 0) this.detonate = true;
+    if (!this.detonate) {
+      for (const e of w.enemies) {
+        if (!e.dead && rectsOverlap(this.rect, e.rect)) {
+          this.detonate = true;
+          break;
+        }
+      }
+    }
+    if (this.x < 20 || this.x > w.stage.width - 20) this.detonate = true;
+    if (this.detonate) {
+      explodeOrb(w, this);
+      this.dead = true;
+    }
+  }
+
+  draw(ctx: CanvasRenderingContext2D): void {
+    const r = this.radius;
+    const pulse = Math.sin(this.t * 0.15) * 1.5;
+    ctx.fillStyle = 'rgba(90,160,255,0.35)';
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, r + pulse, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(160,210,255,0.8)';
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, (r + pulse) * 0.6, 0, Math.PI * 2);
+    ctx.fill();
+    // 内部漩涡
+    ctx.strokeStyle = '#e0f0ff';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, r * 0.4, this.t * 0.2, this.t * 0.2 + 3.5);
+    ctx.stroke();
   }
 }
 

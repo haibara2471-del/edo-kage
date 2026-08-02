@@ -3,7 +3,8 @@ import type { Input } from './input';
 import type { Effects } from './effects';
 import type { Stage } from './stage';
 import type { Player } from './player';
-import type { Projectile, Arrow } from './projectile';
+import type { Projectile, Arrow, WaterOrb } from './projectile';
+import type { PoisonCloud } from './shaman';
 import type { Codex, CodexId } from './codex';
 
 /** 可被攻击/可攻击玩家的实体（足轻、弓箭手、飞行敌人……） */
@@ -30,6 +31,8 @@ export interface World {
   enemies: Hittable[];
   projectiles: Projectile[];
   arrows: Arrow[];
+  orbs: WaterOrb[];
+  clouds: PoisonCloud[];
   codex: Codex;
   camX: number;
 }

@@ -290,7 +290,196 @@ export function drawFlyer(
   ctx.restore();
 }
 
-// ———————————————— 足轻 ————————————————
+// ———————————————— 精英怪：钩使 / 大力金刚 / 蛊术师 ————————————————
+
+const HOOK: Pal = {
+  armor: '#5a6a7a', armorD: '#46525e', cloth: '#4a4458', skin: '#ecc090',
+  straw: '#6a7078', strawD: '#4e545c', spear: '#8a94a8', blade: '#c8d0e0',
+  boots: '#2e2a3c', belt: '#3a3428',
+};
+const WHITE_HOOK: Pal = whiten(HOOK);
+
+/** 钩使：灰蓝甲 + 锁链钩，蓄力甩钩（闪白警告） */
+export function drawHookSoldier(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number,
+  facing: number, pose: ArcherPose,
+): void {
+  const white = pose.flash > 0 || (pose.state === 'windup' && Math.floor(pose.timer / 3) % 2 === 0);
+  const P = white ? WHITE_HOOK : HOOK;
+  const t = pose.t;
+  ctx.save();
+  ctx.translate(x + w / 2, y + h);
+  ctx.scale(facing, 1);
+
+  if (pose.state === 'dead') {
+    r(ctx, -15, -9, 26, 9, P.armor);
+    r(ctx, 10, -10, 9, 9, P.cloth);
+    r(ctx, -20, -3, 12, 2, P.spear); // 散落的锁链
+    ctx.restore();
+    return;
+  }
+
+  const walk = pose.state === 'chase' ? Math.sin(t * 0.22) : 0;
+  ctx.translate(0, pose.state === 'chase' ? -Math.abs(walk) : 0);
+  leg(ctx, -2, -14, walk * 0.5, P.cloth, P.boots);
+  leg(ctx, 2, -14, -walk * 0.5, P.cloth, P.boots);
+  arm(ctx, -3, -26, -0.4, P.cloth, P.skin);
+
+  r(ctx, -6, -29, 12, 15, P.armor);
+  r(ctx, -6, -25, 12, 2, P.armorD);
+  r(ctx, -6, -21, 12, 2, P.armorD);
+  r(ctx, -6, -16, 12, 3, P.belt);
+
+  r(ctx, -4.5, -34, 9, 6, P.skin);
+  r(ctx, 1, -32.3, 1.6, 1.6, white ? '#ffffff' : '#101018');
+  r(ctx, -5.5, -35.5, 11, 3.5, P.straw);
+
+  // 持钩臂：蓄力时后摆，其余前持
+  const armA = pose.state === 'windup' ? 2.2 : 0.1;
+  arm(ctx, 3, -26, armA, P.cloth, P.skin);
+  // 钩爪 + 垂下的锁链环
+  ctx.strokeStyle = P.spear;
+  ctx.lineWidth = 1.5;
+  const hx = pose.state === 'windup' ? -2 : 10;
+  const hy = -12;
+  ctx.beginPath();
+  ctx.arc(hx, hy, 3, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(hx - 1, hy + 5, 2.2, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+const BRUISER: Pal = {
+  skin: '#b06848', skinD: '#8a4c34', cloth: '#3a3040', belt: '#6a3028',
+  band: '#c8b088', boots: '#2a2434',
+};
+const WHITE_BRUISER: Pal = whiten(BRUISER);
+
+/** 大力金刚：赤膊巨汉，蓄力举拳过顶 → 砸地 */
+export function drawBruiser(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number,
+  facing: number, pose: ArcherPose,
+): void {
+  const white = pose.flash > 0 || (pose.state === 'windup' && Math.floor(pose.timer / 4) % 2 === 0);
+  const P = white ? WHITE_BRUISER : BRUISER;
+  const t = pose.t;
+  ctx.save();
+  ctx.translate(x + w / 2, y + h);
+  ctx.scale(facing, 1);
+
+  if (pose.state === 'dead') {
+    r(ctx, -18, -12, 32, 12, P.skin);
+    r(ctx, 13, -11, 10, 10, P.skinD);
+    ctx.restore();
+    return;
+  }
+
+  const walk = pose.state === 'chase' ? Math.sin(t * 0.16) : 0;
+  ctx.translate(0, pose.state === 'chase' ? -Math.abs(walk) * 1.2 : 0);
+
+  // 粗腿开立
+  leg(ctx, -5, -16, 0.3, P.skinD, P.boots);
+  leg(ctx, 5, -16, -0.3, P.skinD, P.boots);
+
+  // 双臂（蓄力举过顶，砸下时前送）
+  let armF = -0.3, armB = -0.5;
+  if (pose.state === 'windup') { armF = -2.6; armB = -2.9; }
+  else if (pose.state === 'smash') { armF = 0.9; armB = 0.7; }
+  ctx.save();
+  ctx.translate(-5, -34);
+  ctx.rotate(armB);
+  r(ctx, -3, 0, 6, 18, P.skin);
+  r(ctx, -3.5, 15, 7, 7, P.skinD); // 巨拳
+  ctx.restore();
+
+  // 粗壮躯干（赤膊）
+  r(ctx, -9, -38, 18, 24, P.skin);
+  r(ctx, -9, -20, 18, 6, P.cloth); // 兜裆布
+  r(ctx, -9, -16, 18, 3, P.belt);
+  r(ctx, -3, -34, 6, 8, P.skinD);  // 胸肌阴影
+
+  // 头 + 发髻
+  r(ctx, -4.5, -45, 9, 8, P.skin);
+  r(ctx, 1.5, -42, 1.8, 1.8, white ? '#ffffff' : '#101018');
+  r(ctx, -2, -48.5, 4, 4, P.cloth);
+  r(ctx, -5, -40, 10, 2, P.band); // 卷袖带
+
+  ctx.save();
+  ctx.translate(5, -34);
+  ctx.rotate(armF);
+  r(ctx, -3, 0, 6, 18, P.skin);
+  r(ctx, -3.5, 15, 7, 7, P.skinD);
+  ctx.restore();
+
+  ctx.restore();
+}
+
+const SHAMAN: Pal = {
+  robe: '#5a3a6a', robeD: '#42294e', skin: '#c8b8a0', staff: '#6a5238',
+  orb: '#7ee060', eye: '#7ee060',
+};
+const WHITE_SHAMAN: Pal = whiten(SHAMAN);
+
+/** 蛊术师：紫袍兜帽 + 蛊杖，施法时举杖（杖顶蛊珠发亮） */
+export function drawShaman(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number,
+  facing: number, pose: ArcherPose,
+): void {
+  const white = pose.flash > 0;
+  const P = white ? WHITE_SHAMAN : SHAMAN;
+  const t = pose.t;
+  ctx.save();
+  ctx.translate(x + w / 2, y + h);
+  ctx.scale(facing, 1);
+
+  if (pose.state === 'dead') {
+    r(ctx, -14, -8, 24, 8, P.robe);
+    r(ctx, 10, -8, 8, 8, P.robeD);
+    r(ctx, -20, -2, 14, 2, P.staff);
+    ctx.restore();
+    return;
+  }
+
+  const walk = pose.state === 'chase' || pose.state === 'retreat' ? Math.sin(t * 0.2) : 0;
+  ctx.translate(0, Math.sin(t * 0.07) * 0.6 + (walk !== 0 ? -Math.abs(walk) * 0.6 : 0));
+
+  // 长袍（下摆遮脚，飘动感）
+  ctx.fillStyle = P.robe;
+  ctx.beginPath();
+  ctx.moveTo(-7, -30);
+  ctx.lineTo(7, -30);
+  ctx.lineTo(9 + walk * 1.5, 0);
+  ctx.lineTo(-9 + walk * 1.5, 0);
+  ctx.closePath();
+  ctx.fill();
+  r(ctx, -7, -30, 14, 5, P.robeD);
+
+  // 兜帽 + 阴影中的蛊眼
+  r(ctx, -5, -40, 10, 11, P.robeD);
+  r(ctx, -3.5, -36.5, 7, 5, '#12101c');
+  r(ctx, 0.5, -35, 1.6, 1.6, P.eye);
+  r(ctx, -2.5, -35, 1.2, 1.2, P.eye);
+
+  // 蛊杖（施法时举起）
+  const staffA = pose.state === 'windup' ? -1.2 : 0.15;
+  ctx.save();
+  ctx.translate(4, -26);
+  ctx.rotate(staffA);
+  r(ctx, -1, -14, 2, 30, P.staff);
+  ctx.fillStyle = pose.state === 'windup' ? '#aaffaa' : P.orb;
+  ctx.beginPath();
+  ctx.arc(0, -16, 3.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  ctx.restore();
+}
 
 const ASH: Pal = {
   armor: '#a04a56', armorD: '#7a3642', cloth: '#564a66', skin: '#ecc090',

@@ -1,15 +1,15 @@
-import { drawAshigaru, drawFlyer, drawArcher } from './characters';
+import { drawAshigaru, drawFlyer, drawArcher, drawHookSoldier, drawBruiser, drawShaman } from './characters';
 import type { Input } from './input';
 
-export type CodexId = 'ashigaru' | 'archer' | 'crow' | 'bat';
+export type CodexId = 'ashigaru' | 'archer' | 'hook' | 'bruiser' | 'shaman' | 'crow' | 'bat';
 
 interface Entry {
   id: CodexId;
-  jp: string;        // 日文名
-  cn: string;        // 中文名
+  jp: string;
+  cn: string;
   hp: number;
   atk: number;
-  flavor: string[];  // 两行以内的描述
+  flavor: string[];
 }
 
 interface Skill {
@@ -23,42 +23,66 @@ interface Skill {
 const SKILLS: Skill[] = [
   {
     key: 'J', jp: '三連斬', cn: '短刀三连',
-    desc: ['横斩 → 回斩 → 突刺击飞。', '命中回复「气」。', '第三段可把敌人轰下深沟。'],
+    desc: ['横斩→回斩→突刺击飞。', '命中回气；第三段挑空', '可接昇月斬与朧乱舞。'],
   },
   {
-    key: 'K', jp: '手裏剣', cn: '手里剑',
-    desc: ['耗气 10，扇形三连掷。', '上中下三发覆盖纵向空间，', '对飞行敌人尤为有效。'],
+    key: 'K', jp: '手裏剣', cn: '扇形三连镖',
+    desc: ['耗气 10，上中下三发。', '纵向覆盖，打飞行物利器。'],
   },
   {
     key: 'L', jp: '瞬身', cn: '瞬身术',
-    desc: ['带无敌帧的短距冲刺。', '可空中使用，穿过敌阵与枪尖。'],
+    desc: ['带无敌帧的短距冲刺。', '可空中使用，穿敌穿枪穿钩。'],
+  },
+  {
+    key: 'U', jp: '昇月斬', cn: '升月斩',
+    desc: ['耗气 10，拔刀上挑。', '人随刀起，把敌人挑到空中。'],
+  },
+  {
+    key: 'H', jp: '朧乱舞', cn: '胧乱舞',
+    desc: ['耗气 20，空中九段连斩。', '挑空后衔接，就是经典连招。'],
+  },
+  {
+    key: 'O', jp: '水月の術', cn: '水月之术',
+    desc: ['耗气 25，放出缓行水弹。', '再按 O / 命中 / 到限引爆，', '大范围高伤害。'],
   },
   {
     key: 'W', jp: '二段跳び', cn: '二段跳',
-    desc: ['空中可再跳一次。', '坠落前最后的补救机会。'],
+    desc: ['空中可再跳一次。', '坠落前最后的补救。'],
   },
   {
     key: 'I', jp: '飛索', cn: '飞索（按住）',
-    desc: ['按住 I 自动抛索钩住横梁，', '持续摆荡不掉落，自动接力下一根。', '松开 I = 自由落体；', '荡到高处松手，就能甩得更高。'],
+    desc: ['按住自动抛索钩梁摆荡，', '松开 I 自由落体；', '越荡越高，高松手甩得远。'],
   },
 ];
 
 const ENTRIES: Entry[] = [
   {
     id: 'ashigaru', jp: '足軽', cn: '长枪足轻', hp: 30, atk: 10,
-    flavor: ['大名的杂兵，但枪比你的刀长。', '别正面硬拼——跳过去，或瞬身绕后。'],
+    flavor: ['枪比你的刀长。', '跳过去，或瞬身绕后。'],
   },
   {
     id: 'archer', jp: '弓兵', cn: '高台弓箭手', hp: 15, atk: 8,
-    flavor: ['占据高台的射手，箭走水平。', '跳箭、瞬身穿箭，或用镖远程对射。'],
+    flavor: ['占据高台，箭走水平。', '跳箭、瞬身，或对射。'],
+  },
+  {
+    id: 'hook', jp: '鉤使い', cn: '钩使', hp: 26, atk: 6,
+    flavor: ['甩锁链钩把你拽过去。', '瞬身穿钩，或贴脸快攻。'],
+  },
+  {
+    id: 'bruiser', jp: '金剛', cn: '大力金刚', hp: 80, atk: 18,
+    flavor: ['刚体：普通攻击无硬直。', '挑空类才打得动他。', '砸地时跳起躲避。'],
+  },
+  {
+    id: 'shaman', jp: '蠱師', cn: '蛊术师', hp: 20, atk: 8,
+    flavor: ['抛毒蛊，雾中持续掉血。', '他会保持距离——贴脸打。'],
   },
   {
     id: 'crow', jp: '烏', cn: '不祥乌鸦', hp: 12, atk: 8,
-    flavor: ['在高空盘旋，俯冲前会发出警告。', '够不着？用手里剑把它射下来。'],
+    flavor: ['高空盘旋，俯冲有警告。', '扇形镖射下来。'],
   },
   {
     id: 'bat', jp: '蝙蝠', cn: '檐下魔蝠', hp: 8, atk: 5,
-    flavor: ['巢居在檐下，飞得低、扑得快。', '二段跳的时候，小心头顶。'],
+    flavor: ['飞得低、扑得快。', '二段跳时小心头顶。'],
   },
 ];
 
@@ -96,15 +120,14 @@ export class Codex {
   }
 
   draw(ctx: CanvasRenderingContext2D, W: number, H: number, t: number): void {
-    ctx.fillStyle = 'rgba(8,10,22,0.9)';
+    ctx.fillStyle = 'rgba(8,10,22,0.92)';
     ctx.fillRect(0, 0, W, H);
 
     ctx.textAlign = 'center';
     ctx.fillStyle = '#e8e4c8';
-    ctx.font = `bold 32px ${JP_FONT}`;
-    ctx.fillText('図 鑑', W / 2, 64);
+    ctx.font = `bold 30px ${JP_FONT}`;
+    ctx.fillText('図 鑑', W / 2, 54);
 
-    // 页签
     const tabs: { id: Page; label: string }[] = [
       { id: 'skills', label: '技 能' },
       { id: 'monsters', label: '敵 人' },
@@ -113,15 +136,15 @@ export class Codex {
       const tx = W / 2 + (i === 0 ? -110 : 110);
       const active = this.page === tab.id;
       ctx.fillStyle = active ? 'rgba(90,98,122,0.5)' : 'rgba(40,46,70,0.5)';
-      ctx.fillRect(tx - 70, 88, 140, 34);
+      ctx.fillRect(tx - 70, 70, 140, 30);
       if (active) {
         ctx.strokeStyle = '#ffd24a';
         ctx.lineWidth = 2;
-        ctx.strokeRect(tx - 70, 88, 140, 34);
+        ctx.strokeRect(tx - 70, 70, 140, 30);
       }
       ctx.fillStyle = active ? '#ffd24a' : 'rgba(255,255,255,0.45)';
-      ctx.font = `bold 18px ${JP_FONT}`;
-      ctx.fillText(tab.label, tx, 112);
+      ctx.font = `bold 17px ${JP_FONT}`;
+      ctx.fillText(tab.label, tx, 92);
     });
 
     if (this.page === 'skills') this.drawSkills(ctx, W);
@@ -129,124 +152,129 @@ export class Codex {
 
     if (t % 80 < 55) {
       ctx.fillStyle = '#ffd24a';
-      ctx.font = '13px monospace';
+      ctx.font = '12px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('— A/D 翻页 · 按 B 关闭 —', W / 2, H - 32);
+      ctx.fillText('— A/D 翻页 · 按 B 关闭 —', W / 2, H - 18);
     }
   }
 
   private drawSkills(ctx: CanvasRenderingContext2D, W: number): void {
-    const cardW = 258;
-    const cardH = 138;
-    const gap = 26;
+    const cardW = 250;
+    const cardH = 116;
+    const gap = 16;
     const rowW = 3 * cardW + 2 * gap;
     const x0 = (W - rowW) / 2;
-    const y0 = 152;
+    const y0 = 118;
 
     SKILLS.forEach((s, i) => {
       const col = i % 3;
       const row = Math.floor(i / 3);
-      // 第二行只有 2 张，居中
-      const rowCount = row === 0 ? 3 : 2;
-      const rowX = x0 + (3 - rowCount) * (cardW + gap) / 2;
-      const x = rowX + col * (cardW + gap);
+      const x = x0 + col * (cardW + gap);
       const y = y0 + row * (cardH + gap);
 
       ctx.fillStyle = 'rgba(24,30,58,0.9)';
       ctx.fillRect(x, y, cardW, cardH);
       ctx.strokeStyle = '#4a5474';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 1.5;
       ctx.strokeRect(x, y, cardW, cardH);
 
-      // 键位徽标
       ctx.fillStyle = '#ffd24a';
-      ctx.fillRect(x + 14, y + 14, 36, 36);
+      ctx.fillRect(x + 10, y + 10, 30, 30);
       ctx.fillStyle = '#1a1408';
-      ctx.font = 'bold 22px monospace';
+      ctx.font = 'bold 19px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText(s.key, x + 32, y + 40);
+      ctx.fillText(s.key, x + 25, y + 32);
 
       ctx.fillStyle = '#e8e4c8';
-      ctx.font = `bold 20px ${JP_FONT}`;
+      ctx.font = `bold 17px ${JP_FONT}`;
       ctx.textAlign = 'left';
-      ctx.fillText(s.jp, x + 62, y + 32);
+      ctx.fillText(s.jp, x + 50, y + 24);
       ctx.fillStyle = 'rgba(255,255,255,0.6)';
-      ctx.font = '12px monospace';
-      ctx.fillText(s.cn, x + 62, y + 50);
+      ctx.font = '11px monospace';
+      ctx.fillText(s.cn, x + 50, y + 40);
 
       ctx.fillStyle = 'rgba(255,255,255,0.7)';
-      ctx.font = '11px monospace';
+      ctx.font = '10.5px monospace';
       s.desc.forEach((line, li) => {
-        ctx.fillText(line, x + 16, y + 74 + li * 18);
+        ctx.fillText(line, x + 12, y + 62 + li * 16);
       });
     });
 
     ctx.fillStyle = 'rgba(255,255,255,0.4)';
     ctx.font = '11px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('A/D 移动 · 坠落深沟即任务失败 · R 重开', W / 2, y0 + 2 * (cardH + 26) + 18);
+    ctx.fillText('A/D 移动 · 坠落深沟即任务失败 · R 重开', W / 2, y0 + 3 * (cardH + gap) + 14);
   }
 
   private drawMonsters(ctx: CanvasRenderingContext2D, W: number, t: number): void {
-    ctx.fillStyle = 'rgba(232,228,200,0.5)';
-    ctx.font = '12px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText(`已遭遇 ${this.seen.size} / ${ENTRIES.length}（命中过一次即解锁）`, W / 2, 144);
-
-    const cardW = 190;
-    const cardH = 268;
-    const gap = 24;
-    const totalW = ENTRIES.length * cardW + (ENTRIES.length - 1) * gap;
+    const cardW = 165;
+    const cardH = 196;
+    const gap = 18;
+    const cols = 4;
+    const totalW = cols * cardW + (cols - 1) * gap;
     const x0 = (W - totalW) / 2;
-    const y0 = 166;
+    const y0 = 118;
 
     ENTRIES.forEach((e, i) => {
-      const x = x0 + i * (cardW + gap);
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const x = x0 + col * (cardW + gap);
+      const y = y0 + row * (cardH + gap);
       const seen = this.seen.has(e.id);
 
       ctx.fillStyle = 'rgba(24,30,58,0.9)';
-      ctx.fillRect(x, y0, cardW, cardH);
+      ctx.fillRect(x, y, cardW, cardH);
       ctx.strokeStyle = seen ? '#59627a' : '#2a3044';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(x, y0, cardW, cardH);
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(x, y, cardW, cardH);
 
       if (seen) {
         ctx.save();
-        ctx.translate(x + cardW / 2, y0 + 90);
-        ctx.scale(2.6, 2.6);
-        if (e.id === 'ashigaru') {
-          drawAshigaru(ctx, -11, -17, 22, 34, 1, { state: 'idle', t, timer: 0, flash: 0 });
-        } else if (e.id === 'archer') {
-          drawArcher(ctx, -10, -17, 20, 34, 1, { state: 'idle', t, timer: 0, flash: 0 });
-        } else {
-          drawFlyer(ctx, -9, -6, 18, 12, 1, e.id, t, 'circle', 0);
+        ctx.translate(x + cardW / 2, y + 72);
+        ctx.scale(2.0, 2.0);
+        switch (e.id) {
+          case 'ashigaru':
+            drawAshigaru(ctx, -11, -17, 22, 34, 1, { state: 'idle', t, timer: 0, flash: 0 });
+            break;
+          case 'archer':
+            drawArcher(ctx, -10, -17, 20, 34, 1, { state: 'idle', t, timer: 0, flash: 0 });
+            break;
+          case 'hook':
+            drawHookSoldier(ctx, -11, -17, 22, 34, 1, { state: 'idle', t, timer: 0, flash: 0 });
+            break;
+          case 'bruiser':
+            drawBruiser(ctx, -15, -23, 30, 46, 1, { state: 'idle', t, timer: 0, flash: 0 });
+            break;
+          case 'shaman':
+            drawShaman(ctx, -10, -16, 20, 32, 1, { state: 'idle', t, timer: 0, flash: 0 });
+            break;
+          default:
+            drawFlyer(ctx, -9, -6, 18, 12, 1, e.id, t, 'circle', 0);
         }
         ctx.restore();
 
         ctx.fillStyle = '#e8e4c8';
-        ctx.font = `bold 24px ${JP_FONT}`;
+        ctx.font = `bold 20px ${JP_FONT}`;
         ctx.textAlign = 'center';
-        ctx.fillText(e.jp, x + cardW / 2, y0 + 148);
-        ctx.fillStyle = 'rgba(255,255,255,0.75)';
-        ctx.font = '13px monospace';
-        ctx.fillText(e.cn, x + cardW / 2, y0 + 170);
-        ctx.fillStyle = '#9fd8ff';
-        ctx.fillText(`HP ${e.hp}   攻 ${e.atk}`, x + cardW / 2, y0 + 194);
-        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        ctx.fillText(e.jp, x + cardW / 2, y + 116);
+        ctx.fillStyle = 'rgba(255,255,255,0.7)';
         ctx.font = '11px monospace';
+        ctx.fillText(e.cn, x + cardW / 2, y + 134);
+        ctx.fillStyle = '#9fd8ff';
+        ctx.fillText(`HP ${e.hp}  攻 ${e.atk}`, x + cardW / 2, y + 152);
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        ctx.font = '10px monospace';
         e.flavor.forEach((line, li) => {
-          ctx.fillText(line, x + cardW / 2, y0 + 220 + li * 17);
+          ctx.fillText(line, x + cardW / 2, y + 168 + li * 13);
         });
       } else {
         ctx.fillStyle = '#2a3044';
-        ctx.font = 'bold 60px monospace';
+        ctx.font = 'bold 48px monospace';
         ctx.textAlign = 'center';
-        ctx.fillText('？', x + cardW / 2, y0 + 116);
+        ctx.fillText('？', x + cardW / 2, y + 92);
         ctx.fillStyle = 'rgba(255,255,255,0.3)';
-        ctx.font = `18px ${JP_FONT}`;
-        ctx.fillText('？？？', x + cardW / 2, y0 + 170);
-        ctx.font = '11px monospace';
-        ctx.fillText('尚未遭遇', x + cardW / 2, y0 + 194);
+        ctx.font = `15px ${JP_FONT}`;
+        ctx.fillText('？？？', x + cardW / 2, y + 134);
       }
     });
   }

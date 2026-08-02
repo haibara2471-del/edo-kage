@@ -1,7 +1,7 @@
 import type { Rect } from './types';
 import { clamp } from './types';
 import { integrate, GRAVITY } from './physics';
-import { Projectile } from './projectile';
+import { Projectile, WaterOrb } from './projectile';
 import { drawNinja, drawSlashFx } from './characters';
 import type { World } from './world';
 
@@ -36,6 +36,12 @@ const SHURIKEN_SPEED = 11;
 const THROW_CD = 12;
 const KI_PER_HIT = 8;
 
+const LAUNCHER_COST = 10;   // 腾空击
+const LAUNCHER_VEL = -9;
+const FLURRY_COST = 20;     // 七十二斩
+const FLURRY_TIME = 36;     // 9 段连斩（每 4 帧一段）
+const ORB_COST = 25;        // 水魔爆
+
 const ROPE_SPEED = 14;    // 绳头飞行速度
 const ROPE_MAX = 340;     // 绳索最大长度
 const REHOOK_CD = 10;     // 松钩后到再次抛索的间隔（按住 I 时自动接力）
@@ -44,7 +50,7 @@ const SWING_AUTO = 0.2;   // 共振泵摆（沿切向运动方向加速，振幅
 const SWING_KICK = 2.5;   // 钩住瞬间朝目标侧的初速度
 const SWING_MAX = 12;
 
-type State = 'idle' | 'run' | 'air' | 'attack' | 'dash' | 'grapple' | 'hit' | 'dead';
+type State = 'idle' | 'run' | 'air' | 'attack' | 'launcher' | 'flurry' | 'dash' | 'grapple' | 'hit' | 'dead';
 
 interface Rope {
   phase: 'fly' | 'attach';
@@ -53,7 +59,8 @@ interface Rope {
   traveled: number;
   ax: number; ay: number;   // 锚点
   len: number;              // 绳长
-  side: number;             // 钩住时玩家相对锚点的方位（±1），荡到另一侧即接近落点
+  dir: number;              // 抛索时的行进方向（±1），摆荡只朝这个方向送
+  side: number;             // = -dir，松手判定用目标侧
 }
 
 export class Player {
@@ -92,6 +99,7 @@ export class Player {
   throwCd = 0;
   t = 0;             // 动画时钟（逻辑帧递增）
   god = false;       // 开发者无敌（?debug=1 按 G）
+  poisonTimer = 0;   // 蛊毒：持续掉血 + 减速
 
   get rect(): Rect {
     return { x: this.x, y: this.y, w: this.w, h: this.h };
@@ -104,8 +112,25 @@ export class Player {
     return this.state === 'attack' ? BLADE[this.attackStage - 1] : null;
   }
 
+  /** 当前攻击的伤害规格（三段刀 / 腾空击 / 七十二斩单段），供 combat 使用 */
+  attackSpec(): { dmg: number; kbx: number; kby: number; hitstun: number; heavy: boolean } | null {
+    if (this.state === 'launcher') return { dmg: 8, kbx: 1, kby: -9, hitstun: 14, heavy: true };
+    if (this.state === 'flurry') return { dmg: 3, kbx: 0.5, kby: -1, hitstun: 6, heavy: false };
+    const s = this.currentSpec();
+    if (s) return { ...s, heavy: this.attackStage === 3 };
+    return null;
+  }
+
   /** 攻击判定框：仅在判定帧内存在 */
   getAttackHitbox(): Rect | null {
+    if (this.state === 'launcher') {
+      // 起手即判定（角色迅速上升，判定框向下加大覆盖地面敌人）
+      if (this.attackTimer < 1 || this.attackTimer > 6) return null;
+      return { x: this.x - 8, y: this.y - 26, w: this.w + 16, h: 60 };
+    }
+    if (this.state === 'flurry') {
+      return { x: this.centerX - 34, y: this.centerY - 30, w: 68, h: 60 };
+    }
     const spec = this.currentSpec();
     if (!spec) return null;
     if (this.attackTimer < spec.startup || this.attackTimer > spec.activeEnd) return null;
@@ -119,6 +144,13 @@ export class Player {
 
   onHitConfirm(): void {
     this.ki = Math.min(this.maxKi, this.ki + KI_PER_HIT);
+  }
+
+  /** 蛊毒掉血（不触发硬直） */
+  dot(dmg: number): void {
+    if (this.god || this.state === 'dead') return;
+    this.hp = Math.max(0, this.hp - dmg);
+    if (this.hp <= 0) this.state = 'dead';
   }
 
   takeHit(dmg: number, dirX: number, w: World): void {
@@ -199,10 +231,12 @@ export class Player {
       r.phase = 'attach';
       r.ax = attach.x;
       r.ay = attach.y;
-      r.len = Math.max(46, Math.hypot(this.centerX - r.ax, this.y + 10 - r.ay));
-      r.side = Math.sign(this.centerX - r.ax) || -1;
-      this.vx += -r.side * SWING_KICK; // 钩住瞬间朝目标侧甩出
-      this.facing = -r.side;           // 摆荡期间朝向锁定目标侧（不随速度翻转）
+      // 绳长上限：弧底不低于地面（防止摆到沟沿时被地面"接住"而断绳卡死）
+      const rawLen = Math.hypot(this.centerX - r.ax, this.y + 10 - r.ay);
+      r.len = Math.max(46, Math.min(rawLen, stage.groundY - 28 - r.ay));
+      // 目标侧永远锁定行进方向（即使高速飞过了锚点，也只会向前甩，不会回程）
+      r.side = -r.dir;
+      this.vx += r.dir * SWING_KICK;
       this.state = 'grapple';
       w.effects.puff(attach.x, attach.y);
     } else if (r.traveled > ROPE_MAX || r.hy < 8 || r.hx < 0 || r.hx > stage.width) {
@@ -222,6 +256,7 @@ export class Player {
     this.grappleCd = REHOOK_CD;
     this.airJumps = 1; // 摆荡后补一次二段跳
     if (boost) this.vy = Math.min(this.vy, -4.5);
+    this.facing = Math.sign(this.vx) || this.facing; // 朝向跟随飞跃方向（接力瞄准用）
     w.effects.puff(this.centerX, this.centerY);
   }
 
@@ -274,9 +309,10 @@ export class Player {
       this.vy -= vr * ny;
     }
 
-    // 自动松手：荡过支点到另一侧、升至接近最高点时自动飞出（手动 W 仍可提前松）
+    // 自动松手：荡过支点到另一侧、升至接近最高点、且正朝目标侧运动时飞出
+    // （回程经过支点不松手，否则会把人甩回头路）
     const sideNow = Math.sign(this.centerX - r.ax) || r.side;
-    if (sideNow !== r.side && this.vy > -1) {
+    if (sideNow !== r.side && this.vy > -1 && this.vx * -r.side > 0.5) {
       this.vx *= 1.1;
       this.detach(w, true);
       return;
@@ -323,6 +359,10 @@ export class Player {
     if (this.throwCd > 0) this.throwCd--;
     if (this.coyote > 0) this.coyote--;
     if (this.grappleCd > 0) this.grappleCd--;
+    if (this.poisonTimer > 0) {
+      this.poisonTimer--;
+      if (this.poisonTimer % 30 === 0) this.dot(1);
+    }
 
     const { stage, input, effects } = w;
 
@@ -357,11 +397,34 @@ export class Player {
       return;
     }
 
+    // 昇月斬（腾空击）：拔刀上挑，人随刀起
+    if (this.state === 'launcher') {
+      this.attackTimer++;
+      integrate(this, stage);
+      if (this.attackTimer >= 16) this.state = 'air';
+      return;
+    }
+
+    // 朧乱舞（七十二斩）：空中悬停乱舞，每 4 帧一段判定
+    if (this.state === 'flurry') {
+      this.attackTimer++;
+      this.vy = 0;
+      this.vx *= 0.85;
+      if (this.attackTimer % 4 === 0) this.attackId++; // 每段独立命中
+      if (this.attackTimer >= FLURRY_TIME) {
+        this.state = 'air';
+      } else if (this.y + this.h >= stage.groundY && stage.hasGroundAt(this.centerX)) {
+        this.y = stage.groundY - this.h; // 贴地则收招
+        this.state = 'idle';
+      }
+      return;
+    }
+
     const move = (input.isHeld('left') ? -1 : 0) + (input.isHeld('right') ? 1 : 0);
     const attacking = this.state === 'attack';
 
-    // 飞索：按住 I 即自动朝前上方最近锚点抛索（无目标时按 45° 抛出）
-    if (!attacking && !this.rope && this.grappleCd <= 0 && input.isHeld('grapple')) {
+    // 飞索：按住 I 且在空中时，自动朝前上方最近锚点抛索（无目标时按 45° 抛出）
+    if (!attacking && !this.onGround && !this.rope && this.grappleCd <= 0 && input.isHeld('grapple')) {
       const dir = move !== 0 ? move : this.facing;
       let dx = dir * 0.7071;
       let dy = -0.7071;
@@ -377,8 +440,8 @@ export class Player {
         }
         const ddx = a.x - this.centerX;
         const ddy = a.y - (this.y + 10);
-        if (ddy > -16) continue;                                    // 必须在上方
-        if (Math.abs(ddx) > 30 && Math.sign(ddx) !== dir) continue; // 必须在前方
+        if (ddy > -16) continue;                         // 必须在上方
+        if (Math.abs(ddx) < 20 || Math.sign(ddx) !== dir) continue; // 必须在行进方向前方
         const d = Math.hypot(ddx, ddy);
         if (d < bestD) {
           bestD = d;
@@ -392,7 +455,7 @@ export class Player {
         hy: this.y + 10,
         dx, dy,
         traveled: 0,
-        ax: 0, ay: 0, len: 0, side: 0,
+        ax: 0, ay: 0, len: 0, dir, side: -dir,
       };
       effects.puff(this.centerX, this.centerY);
     }
@@ -421,6 +484,41 @@ export class Player {
         this.vy = DJUMP_VEL;
         this.airJumps--;
         effects.ring(this.centerX, this.y + this.h - 6);
+      }
+    }
+
+    // 昇月斬（U）：挑空起手式，可接朧乱舞/空中三段
+    if (!attacking && this.ki >= LAUNCHER_COST && input.consume('skillU')) {
+      this.ki -= LAUNCHER_COST;
+      this.state = 'launcher';
+      this.attackTimer = 0;
+      this.attackId++;
+      this.vy = LAUNCHER_VEL;
+      this.onGround = false;
+      this.airJumps = 1;
+      effects.ring(this.centerX, this.y + this.h - 6);
+    }
+
+    // 朧乱舞（H）：空中连斩，重击/挑飞后的连招核心
+    if (!attacking && this.ki >= FLURRY_COST && input.consume('skillH')) {
+      this.ki -= FLURRY_COST;
+      this.state = 'flurry';
+      this.attackTimer = 0;
+      this.attackId++;
+      if (this.onGround) {
+        this.vy = -6; // 地面发动先小跳
+        this.onGround = false;
+      }
+    }
+
+    // 水月の術（O）：一段放水弹，二段（或命中/到限）引爆
+    if (!attacking && input.consume('skillO')) {
+      const live = w.orbs.find((o) => !o.dead);
+      if (live) {
+        live.detonate = true;
+      } else if (this.ki >= ORB_COST) {
+        this.ki -= ORB_COST;
+        w.orbs.push(new WaterOrb(this.centerX + this.facing * 20, this.y + 8, this.facing * 1.6));
       }
     }
 
@@ -461,11 +559,12 @@ export class Player {
       }
     }
 
-    // 水平移动
+    // 水平移动（中毒减速 30%）
     if (this.state !== 'attack') {
-      const accel = this.onGround ? 0.6 : 0.35;
+      const slow = this.poisonTimer > 0 ? 0.7 : 1;
+      const accel = (this.onGround ? 0.6 : 0.35) * slow;
       if (move !== 0) {
-        this.vx = clamp(this.vx + move * accel, -MOVE_MAX, MOVE_MAX);
+        this.vx = clamp(this.vx + move * accel, -MOVE_MAX * slow, MOVE_MAX * slow);
         this.facing = move;
       } else {
         this.vx *= this.onGround ? 0.7 : 0.98;
@@ -486,8 +585,8 @@ export class Player {
       this.state = 'idle';
     }
 
-    // 状态归纳
-    if (this.state !== 'attack') {
+    // 状态归纳（只在基础移动状态间归纳，不覆盖 attack/launcher/flurry 等动作状态）
+    if (this.state === 'idle' || this.state === 'run' || this.state === 'air') {
       if (!this.onGround) this.state = 'air';
       else this.state = Math.abs(this.vx) > 0.3 ? 'run' : 'idle';
     }
@@ -527,12 +626,37 @@ export class Player {
     }
 
     drawNinja(ctx, this.x, this.y, this.w, this.h, this.facing, {
-      state: this.state === 'grapple' ? 'air' : this.state,
+      state:
+        this.state === 'grapple' || this.state === 'launcher' ? 'air' :
+        this.state === 'flurry' ? 'dash' : this.state,
       t: this.t,
       attackStage: this.attackStage,
       attackTimer: this.attackTimer,
     });
     ctx.globalAlpha = 1;
+
+    // 朧乱舞：环绕刀光
+    if (this.state === 'flurry') {
+      const a = this.attackTimer * 0.5;
+      for (let i = 0; i < 3; i++) {
+        const ang = a + (i * Math.PI * 2) / 3;
+        ctx.strokeStyle = i === 0 ? '#ffd24a' : '#ffffff';
+        ctx.globalAlpha = 0.7;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(this.centerX, this.centerY, 30, ang, ang + 1.6);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // 中毒染色
+    if (this.poisonTimer > 0 && this.state !== 'dead') {
+      ctx.globalAlpha = 0.25 + Math.sin(this.t * 0.2) * 0.08;
+      ctx.fillStyle = '#5aa040';
+      ctx.fillRect(this.x - 2, this.y - 4, this.w + 4, this.h + 4);
+      ctx.globalAlpha = 1;
+    }
 
     // 刀光弧
     const hb = this.getAttackHitbox();

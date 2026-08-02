@@ -51,6 +51,16 @@ export class Effects {
     this.shake = Math.max(this.shake, 4);
   }
 
+  /** 水月の術引爆 */
+  orbExplode(x: number, y: number): void {
+    this.freeze = 6;
+    this.shake = 9;
+    this.sparks(x, y, 26, '#5aa0ff');
+    this.sparks(x, y, 14, '#e0f0ff');
+    this.ring(x, y);
+    this.numbers.push({ x, y: y - 30, vy: -0.9, life: 50, text: '22', color: '#9fd8ff', big: true });
+  }
+
   /** 冲刺/落地扬尘 */
   puff(x: number, y: number): void {
     for (let i = 0; i < 6; i++) {

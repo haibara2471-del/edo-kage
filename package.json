@@ -6,9 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:sim": "tsx sim/harness.ts"
   },
   "devDependencies": {
+    "tsx": "^4.23.1",
     "typescript": "^5.5.4",
     "vite": "^5.4.8"
   }

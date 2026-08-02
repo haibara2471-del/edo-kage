@@ -2,6 +2,9 @@ import { clamp } from './types';
 import { Enemy } from './enemy';
 import { Flyer } from './flyer';
 import { Archer } from './archer';
+import { HookSoldier } from './hooksoldier';
+import { Bruiser } from './bruiser';
+import { Shaman } from './shaman';
 import type { World } from './world';
 
 type Phase = 'start' | 'fight' | 'advance' | 'done';
@@ -13,10 +16,10 @@ type Phase = 'start' | 'fight' | 'advance' | 'done';
 export class Waves {
   wave = 0;
   readonly total = 3;
-  private comps: { ash: number; crow: number; bat: number; archer: number }[] = [
-    { ash: 3, crow: 0, bat: 0, archer: 0 }, // 第一战区：纯足轻教学
-    { ash: 3, crow: 1, bat: 0, archer: 1 }, // 第二战区：乌鸦 + 高台弓箭手
-    { ash: 4, crow: 0, bat: 1, archer: 1 }, // 第三战区：足轻群 + 蝙蝠 + 弓箭手
+  private comps: { ash: number; crow: number; bat: number; archer: number; hook: number; bruiser: number; shaman: number }[] = [
+    { ash: 3, crow: 0, bat: 0, archer: 0, hook: 0, bruiser: 0, shaman: 0 }, // 第一战区：纯足轻教学
+    { ash: 3, crow: 1, bat: 0, archer: 1, hook: 1, bruiser: 0, shaman: 0 }, // 第二战区：乌鸦+弓兵+钩使
+    { ash: 2, crow: 0, bat: 1, archer: 1, hook: 0, bruiser: 1, shaman: 1 }, // 第三战区：金刚+蛊师压阵
   ];
   /** 每战区弓箭手的高台位置（与 stage.platforms 对应） */
   private archerSpots: { x: number; y: number }[][] = [
@@ -116,6 +119,15 @@ export class Waves {
     for (let i = 0; i < comp.archer; i++) {
       const spot = this.archerSpots[zoneIdx][i];
       if (spot) w.enemies.push(new Archer(spot.x, spot.y));
+    }
+    for (let i = 0; i < comp.hook; i++) {
+      w.enemies.push(new HookSoldier(zone.x1 - 320 - i * 120, w.stage.groundY - 34));
+    }
+    for (let i = 0; i < comp.bruiser; i++) {
+      w.enemies.push(new Bruiser(zone.x0 + 260 + i * 200, w.stage.groundY - 46));
+    }
+    for (let i = 0; i < comp.shaman; i++) {
+      w.enemies.push(new Shaman(zone.x1 - 140 - i * 120, w.stage.groundY - 32));
     }
   }
 
