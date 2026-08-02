@@ -98,6 +98,6 @@ export class Title {
 
     ctx.fillStyle = 'rgba(255,255,255,0.35)';
     ctx.font = '11px monospace';
-    ctx.fillText('A/D 移动  W 跳/二段跳  J 短刀  K 手里剑  L 瞬身  I 钩索  B 图鉴', W / 2, 500);
+    ctx.fillText('A/D 移动  W 跳/二段跳  J 短刀  K 手里剑  L 瞬身  按住I 飞索  B 图鉴', W / 2, 500);
   }
 }

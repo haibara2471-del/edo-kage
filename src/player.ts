@@ -38,9 +38,9 @@ const KI_PER_HIT = 8;
 
 const ROPE_SPEED = 14;    // 绳头飞行速度
 const ROPE_MAX = 340;     // 绳索最大长度
-const ROPE_HOLD = 75;     // 钩住后最多支撑 1.25 秒
+const REHOOK_CD = 10;     // 松钩后到再次抛索的间隔（按住 I 时自动接力）
 const SWING_PUMP = 0.22;  // 手动摆荡助力（A/D）
-const SWING_AUTO = 0.14;  // 自动泵摆（朝目标侧持续加力，一键荡过去）
+const SWING_AUTO = 0.14;  // 自动泵摆（朝目标侧持续加力，振幅越荡越大→荡高甩出）
 const SWING_MAX = 12;
 
 type State = 'idle' | 'run' | 'air' | 'attack' | 'dash' | 'grapple' | 'hit' | 'dead';
@@ -52,7 +52,6 @@ interface Rope {
   traveled: number;
   ax: number; ay: number;   // 锚点
   len: number;              // 绳长
-  hold: number;             // 剩余支撑帧数
   side: number;             // 钩住时玩家相对锚点的方位（±1），荡到另一侧即接近落点
 }
 
@@ -187,7 +186,6 @@ export class Player {
       r.ax = attach.x;
       r.ay = attach.y;
       r.len = Math.max(46, Math.hypot(this.centerX - r.ax, this.y + 10 - r.ay));
-      r.hold = ROPE_HOLD;
       r.side = Math.sign(this.centerX - r.ax) || -1;
       this.state = 'grapple';
       w.effects.puff(attach.x, attach.y);
@@ -197,17 +195,17 @@ export class Player {
     }
   }
 
-  /** 松钩：跳跃键给小跳助力，I 键直接放 */
+  /** 松钩：跳跃键给小跳助力，松开 I 直接自由落体 */
   private detach(w: World, boost: boolean): void {
     this.state = 'air';
     this.rope = null;
-    this.grappleCd = 18;
+    this.grappleCd = REHOOK_CD;
     this.airJumps = 1; // 摆荡后补一次二段跳
     if (boost) this.vy = Math.min(this.vy, -4.5);
     w.effects.puff(this.centerX, this.centerY);
   }
 
-  /** 钟摆摆荡：重力 + A/D 泵摆 + 绳长约束 */
+  /** 钟摆摆荡：按住 I 保持悬挂，松开即自由落体 */
   private updateSwing(w: World): void {
     const r = this.rope;
     if (!r) {
@@ -216,15 +214,9 @@ export class Player {
     }
     const { stage, input } = w;
 
+    // 松开 I = 放手；按跳 = 助力飞出
+    if (!input.isHeld('grapple')) { this.detach(w, false); return; }
     if (input.consume('jump')) { this.detach(w, true); return; }
-    if (input.consume('grapple')) { this.detach(w, false); return; }
-
-    // 绳索支撑时限到，自动断开
-    if (--r.hold <= 0) {
-      this.detach(w, false);
-      this.grappleCd = 25;
-      return;
-    }
 
     // 摆动物理：自动朝目标侧泵摆 + A/D 手动加力
     this.vy += GRAVITY;
@@ -339,8 +331,8 @@ export class Player {
     const move = (input.isHeld('left') ? -1 : 0) + (input.isHeld('right') ? 1 : 0);
     const attacking = this.state === 'attack';
 
-    // 飞索：自动瞄准前上方最近的锚点（无目标时按 45° 抛出）
-    if (!attacking && !this.rope && this.grappleCd <= 0 && input.consume('grapple')) {
+    // 飞索：按住 I 即自动朝前上方最近锚点抛索（无目标时按 45° 抛出）
+    if (!attacking && !this.rope && this.grappleCd <= 0 && input.isHeld('grapple')) {
       const dir = move !== 0 ? move : this.facing;
       let dx = dir * 0.7071;
       let dy = -0.7071;
@@ -363,7 +355,7 @@ export class Player {
         hy: this.y + 10,
         dx, dy,
         traveled: 0,
-        ax: 0, ay: 0, len: 0, hold: 0, side: 0,
+        ax: 0, ay: 0, len: 0, side: 0,
       };
       effects.puff(this.centerX, this.centerY);
     }
@@ -465,14 +457,11 @@ export class Player {
   }
 
   draw(ctx: CanvasRenderingContext2D): void {
-    // 绳索（飞行中的绳头 / 钩住后带下垂的绳；临近断裂时闪烁）
+    // 绳索（飞行中的绳头 / 钩住后带下垂的绳）
     if (this.rope) {
       const r = this.rope;
       const tx = r.phase === 'fly' ? r.hx : r.ax;
       const ty = r.phase === 'fly' ? r.hy : r.ay;
-      if (r.phase === 'attach' && r.hold < 20 && Math.floor(r.hold / 3) % 2 === 0) {
-        ctx.globalAlpha = 0.35;
-      }
       ctx.strokeStyle = '#c8b088';
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -488,7 +477,6 @@ export class Player {
       ctx.stroke();
       ctx.fillStyle = '#e8ecf8';
       ctx.fillRect(tx - 2.5, ty - 2.5, 5, 5);
-      ctx.globalAlpha = 1;
     }
 
     // 无敌帧闪烁
