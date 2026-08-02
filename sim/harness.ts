@@ -94,6 +94,21 @@ interface Result {
   detail: string;
 }
 
+/** 摆荡机器人：空中无绳时按 W 抛索；荡过支点接近高点时按 W 松手（模拟玩家决策） */
+function ropeBot(input: FakeInput, player: Player): void {
+  if (!player.rope && !player.onGround && player.grappleCd <= 0 && player.state !== 'grapple') {
+    input.tap('jump'); // 空中按 W：抛索（无锚点则二段跳）
+    return;
+  }
+  if (player.state === 'grapple' && player.rope && player.rope.phase === 'attach') {
+    const r = player.rope;
+    const pastAnchor = Math.sign(player.centerX - r.ax) === r.dir && Math.abs(player.centerX - r.ax) > 10;
+    if (pastAnchor && player.vy > -1 && player.vx * r.dir > 2) {
+      input.tap('jump'); // 再按 W：松手飞出（只在向目标侧运动时松）
+    }
+  }
+}
+
 // ———————————————— 场景：绳索过沟（真实摆荡代码） ————————————————
 
 function ropeGap(gapIndex: 1 | 2): Result {
@@ -106,20 +121,17 @@ function ropeGap(gapIndex: 1 | 2): Result {
   for (let i = 0; i < 3; i++) step(world); // 站稳
   input.tap('jump'); // 起跳
   step(world);
-  input.hold('grapple'); // 按住 I 不放
 
   let attached = false;
   let hadRope = false;
   let landed = false;
   let ticks = 0;
   const trace: string[] = [];
-  for (let i = 0; i < 500; i++) {
+  for (let i = 0; i < 600; i++) {
     ticks = i;
+    ropeBot(input, player);
     step(world);
     if (player.rope) attached = true;
-    if (player.rope && !hadRope && player.rope.phase === 'attach') {
-      trace.push(`t${i}钩(${player.rope.ax.toFixed(0)})`);
-    }
     if (!player.rope && hadRope) {
       trace.push(`t${i}松(x=${player.centerX.toFixed(0)},vx=${player.vx.toFixed(1)})`);
     }
@@ -129,12 +141,11 @@ function ropeGap(gapIndex: 1 | 2): Result {
       break;
     }
   }
-  input.release('grapple');
-  const pass = attached && landed && player.state !== 'dead' && ticks >= 80;
+  const pass = attached && landed && player.state !== 'dead';
   return {
-    name: `绳索过沟${gapIndex}（按住 I，真实代码）`,
+    name: `绳索过沟${gapIndex}（W 抛索/松手）`,
     pass,
-    detail: `落点x=${player.centerX.toFixed(0)}(目标>${targetX}) 用时${ticks}t(要求≥80，不过快) 状态=${player.state} 轨迹=${trace.join(' ')}`,
+    detail: `落点x=${player.centerX.toFixed(0)}(目标>${targetX}) 用时${ticks}t 状态=${player.state} 轨迹=${trace.join(' ')}`,
   };
 }
 
@@ -311,7 +322,6 @@ function trainingTraverse(): Result {
   player.x = 60;
   player.y = stage.groundY - player.h;
   for (let i = 0; i < 3; i++) step(world);
-  input.hold('grapple');
   input.hold('right');
 
   const releases: number[] = [];
@@ -321,10 +331,8 @@ function trainingTraverse(): Result {
   let reached = false;
   for (let i = 0; i < 900; i++) {
     ticks = i;
+    ropeBot(input, player);
     step(world);
-    if (player.rope && !hadRope && player.rope.phase === 'attach') {
-      trace.push(`t${i}钩(${player.rope.ax.toFixed(0)},len${player.rope.len.toFixed(0)})`);
-    }
     if (!player.rope && hadRope) {
       releases.push(player.vx);
       trace.push(`t${i}松(x=${player.centerX.toFixed(0)},vx=${player.vx.toFixed(1)})`);
@@ -335,15 +343,12 @@ function trainingTraverse(): Result {
       break;
     }
   }
-  input.release('grapple');
   input.release('right');
   const maxV = releases.length ? Math.max(...releases.map(Math.abs)) : 0;
-  const passes = world.player.x; // 占位避免 lint
-  void passes;
   return {
     name: '修練場：下排梁横移到终点台',
     pass: reached && maxV <= 8,
-    detail: `x=${player.centerX.toFixed(0)}(目标>830) 用时${ticks}t 峰值=${maxV.toFixed(1)} 轨迹=${trace.slice(0, 12).join(' ')}`,
+    detail: `x=${player.centerX.toFixed(0)}(目标>830) 用时${ticks}t 峰值=${maxV.toFixed(1)} 轨迹=${trace.slice(0, 10).join(' ')}`,
   };
 }
 

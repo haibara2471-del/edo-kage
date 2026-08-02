@@ -45,11 +45,10 @@ const ORB_COST = 25;        // 水魔爆
 const ROPE_SPEED = 14;    // 绳头飞行速度（快于玩家甩出速度，保证接力命中）
 const ROPE_MAX = 340;     // 绳索最大长度
 const REHOOK_CD = 10;     // 松钩后到再次抛索的间隔（按住 I 时自动接力）
-const SWING_PUMP = 0.3;   // 手动摆荡助力（A/D，自己掌握节奏）
-const SWING_AUTO = 0.1;   // 共振泵摆（轻微保活，振幅缓慢增长，不催命）
-const SWING_KICK = 1.5;   // 钩住瞬间朝目标侧的初速度
-const SWING_MAX = 7;      // 摆速上限（慢而稳，留思考时间）
-const RELEASE_MIN_V = 2.5; // 自动松手的最小甩出速度（低门槛快释放，速度由软着陆压住）
+const SWING_PUMP = 0.25;  // 手动摆荡助力（A/D，自己掌握节奏）
+const SWING_AUTO = 0.04;  // 共振泵摆（轻微保活，振幅缓慢增长）
+const SWING_KICK = 1.0;   // 钩住瞬间朝目标侧的初速度
+const SWING_MAX = 6;      // 摆速上限（慢而稳，看得清弧线）
 
 type State = 'idle' | 'run' | 'air' | 'attack' | 'launcher' | 'flurry' | 'dash' | 'grapple' | 'hit' | 'dead';
 
@@ -61,11 +60,10 @@ interface Rope {
   ax: number; ay: number;   // 锚点
   len: number;              // 绳长
   dir: number;              // 抛索时的行进方向（±1），摆荡只朝这个方向送
-  side: number;             // = -dir，松手判定用目标侧
-  attachT: number;          // 钩住时长（帧），防止秒钩秒放
+  side: number;             // = -dir，备用
 }
 
-const ATTACH_DAMP = 3;      // 钩住瞬间切向速度软着陆上限
+const ATTACH_DAMP = 2.5;  // 钩住瞬间切向速度软着陆上限
 
 export class Player {
   x = 120;
@@ -201,6 +199,35 @@ export class Player {
     return false;
   }
 
+  /** 自动瞄准：行进方向前上方最近的锚点（无目标返回 null） */
+  private findAnchor(w: World): { x: number; y: number } | null {
+    const stage = w.stage;
+    const dir =
+      (w.input.isHeld('left') ? -1 : 0) + (w.input.isHeld('right') ? 1 : 0) || this.facing;
+    let best: { x: number; y: number } | null = null;
+    let bestD = ROPE_MAX;
+    for (const a of stage.anchors) {
+      // 跳过刚松开的锚点（40 帧内），接力时锁定下一根
+      if (
+        this.lastHook &&
+        this.t < this.lastHookUntil &&
+        Math.hypot(a.x - this.lastHook.x, a.y - this.lastHook.y) < 30
+      ) {
+        continue;
+      }
+      const ddx = a.x - this.centerX;
+      const ddy = a.y - (this.y + 10);
+      if (ddy > -16) continue;                                // 必须在上方
+      if (Math.abs(ddx) < 20 || Math.sign(ddx) !== dir) continue; // 必须在行进方向前方
+      const d = Math.hypot(ddx, ddy);
+      if (d < bestD) {
+        bestD = d;
+        best = { x: a.x, y: a.y };
+      }
+    }
+    return best;
+  }
+
   /** 绳头飞行：45° 前上方，钩住横梁/平台/锚点 */
   private updateRopeFly(w: World): void {
     const r = this.rope;
@@ -240,7 +267,6 @@ export class Player {
       r.len = Math.max(46, Math.min(rawLen, stage.groundY - 28 - r.ay));
       // 目标侧永远锁定行进方向（即使高速飞过了锚点，也只会向前甩，不会回程）
       r.side = -r.dir;
-      r.attachT = 0;
       // 切向速度软着陆：钩住瞬间把摆速压到上限，每荡都从容开始
       const nx = (this.centerX - r.ax) / (rawLen || 1);
       const ny = (this.y + 10 - r.ay) / (rawLen || 1);
@@ -285,10 +311,8 @@ export class Player {
       return;
     }
     const { stage, input } = w;
-    r.attachT++;
 
-    // 松开 I = 放手；按跳 = 助力飞出
-    if (!input.isHeld('grapple')) { this.detach(w, false); return; }
+    // 再按 W = 松手飞出（松手时机全由玩家决定）
     if (input.consume('jump')) { this.detach(w, true); return; }
 
     // 共振泵摆：沿当前切向运动方向加速（荡秋千式发力，振幅自然增长）
@@ -325,15 +349,6 @@ export class Player {
       const vr = this.vx * nx + this.vy * ny;
       this.vx -= vr * nx;
       this.vy -= vr * ny;
-    }
-
-    // 自动松手：荡过支点另一侧、升至接近最高点、且甩出速度足够时就飞出
-    // （第一次过底点是最好的窗口；W 可随时主动松手）
-    const sideNow = Math.sign(this.centerX - r.ax) || r.side;
-    if (sideNow !== r.side && this.vy > -1 && this.vx * -r.side > RELEASE_MIN_V) {
-      this.vx *= 1.05;
-      this.detach(w, true);
-      return;
     }
 
     // 落到地面/平台 → 自动松钩
@@ -441,43 +456,6 @@ export class Player {
     const move = (input.isHeld('left') ? -1 : 0) + (input.isHeld('right') ? 1 : 0);
     const attacking = this.state === 'attack';
 
-    // 飞索：按住 I 且在空中时，自动朝前上方最近锚点抛索（无目标时按 45° 抛出）
-    if (!attacking && !this.onGround && !this.rope && this.grappleCd <= 0 && input.isHeld('grapple')) {
-      const dir = move !== 0 ? move : this.facing;
-      let dx = dir * 0.7071;
-      let dy = -0.7071;
-      let bestD = ROPE_MAX;
-      for (const a of stage.anchors) {
-        // 跳过刚松开的锚点（40 帧内），接力时锁定下一根
-        if (
-          this.lastHook &&
-          this.t < this.lastHookUntil &&
-          Math.hypot(a.x - this.lastHook.x, a.y - this.lastHook.y) < 30
-        ) {
-          continue;
-        }
-        const ddx = a.x - this.centerX;
-        const ddy = a.y - (this.y + 10);
-        if (ddy > -16) continue;                         // 必须在上方
-        if (Math.abs(ddx) < 20 || Math.sign(ddx) !== dir) continue; // 必须在行进方向前方
-        const d = Math.hypot(ddx, ddy);
-        if (d < bestD) {
-          bestD = d;
-          dx = ddx / d;
-          dy = ddy / d;
-        }
-      }
-      this.rope = {
-        phase: 'fly',
-        hx: this.centerX,
-        hy: this.y + 10,
-        dx, dy,
-        traveled: 0,
-        ax: 0, ay: 0, len: 0, dir, side: -dir, attachT: 0,
-      };
-      effects.puff(this.centerX, this.centerY);
-    }
-
     // 瞬身（攻击中不可）
     if (!attacking && input.consume('dash') && this.dashCd <= 0) {
       this.state = 'dash';
@@ -490,7 +468,7 @@ export class Player {
       return;
     }
 
-    // 跳跃 / 二段跳（攻击中不可）
+    // 跳跃 / 飞索 / 二段跳（攻击中不可）
     if (!attacking && input.consume('jump')) {
       if (this.onGround || this.coyote > 0) {
         this.vy = JUMP_VEL;
@@ -498,6 +476,29 @@ export class Player {
         this.coyote = 0;
         this.airJumps = 1;
         effects.puff(this.centerX, this.y + this.h);
+      } else if (!this.rope && this.grappleCd <= 0) {
+        // 空中：附近有锚点 → 自动抛索；否则二段跳
+        const target = this.findAnchor(w);
+        if (target) {
+          const dir = move !== 0 ? move : this.facing;
+          const ddx = target.x - this.centerX;
+          const ddy = target.y - (this.y + 10);
+          const d = Math.hypot(ddx, ddy) || 1;
+          this.rope = {
+            phase: 'fly',
+            hx: this.centerX,
+            hy: this.y + 10,
+            dx: ddx / d,
+            dy: ddy / d,
+            traveled: 0,
+            ax: 0, ay: 0, len: 0, dir, side: -dir,
+          };
+          effects.puff(this.centerX, this.centerY);
+        } else if (this.airJumps > 0) {
+          this.vy = DJUMP_VEL;
+          this.airJumps--;
+          effects.ring(this.centerX, this.y + this.h - 6);
+        }
       } else if (this.airJumps > 0) {
         this.vy = DJUMP_VEL;
         this.airJumps--;

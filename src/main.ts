@@ -55,6 +55,10 @@ if (IS_TRAINING) {
 }
 
 window.addEventListener('keydown', (e) => {
+  if (e.code === 'KeyT' && mode === 'title') {
+    location.search = '?training=1'; // 标题画面按 T 进修練場
+    return;
+  }
   if (e.code === 'KeyR' && mode === 'play') location.reload();
   if (!DEBUG || mode !== 'play') return;
   // —— 开发者调试（?debug=1）——
@@ -79,10 +83,6 @@ function tick(): void {
   frameCount++;
 
   if (mode === 'title') {
-    if (input.consume('grapple')) {
-      location.search = '?training=1'; // 标题画面按 I 进修練場
-      return;
-    }
     if (title.update(input)) mode = 'play';
     return;
   }
