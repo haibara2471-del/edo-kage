@@ -15,6 +15,7 @@ const VIEW_H = 540;
 const STEP = 1000 / 60; // 固定 60Hz 逻辑步进
 
 const IS_TRAINING = new URLSearchParams(location.search).has('training');
+const DEBUG = new URLSearchParams(location.search).has('debug');
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d')!;
@@ -53,6 +54,22 @@ if (IS_TRAINING) {
 
 window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyR' && mode === 'play') location.reload();
+  if (!DEBUG || mode !== 'play') return;
+  // —— 开发者调试（?debug=1）——
+  const zones = stage.grounds;
+  if (e.code === 'Digit1' || e.code === 'Digit2' || e.code === 'Digit3') {
+    const zi = Number(e.code.slice(-1)) - 1;
+    if (zones[zi]) {
+      world.enemies.length = 0; // 传送并清场
+      player.x = zones[zi].x0 + 60;
+      player.y = 300;
+      player.vx = 0;
+      player.vy = 0;
+      world.camX = clamp(player.centerX - VIEW_W / 2, 0, stage.width - VIEW_W);
+    }
+  }
+  if (e.code === 'KeyN') world.enemies.length = 0; // 秒清当前波（测结界开门）
+  if (e.code === 'KeyG') player.god = !player.god;   // 无敌开关
 });
 
 function tick(): void {
@@ -144,6 +161,13 @@ function render(): void {
   ctx.restore();
 
   drawHUD(ctx, world, waves, VIEW_W);
+
+  if (DEBUG) {
+    ctx.font = '11px monospace';
+    ctx.fillStyle = '#ffd24a';
+    ctx.textAlign = 'right';
+    ctx.fillText(`DEBUG${player.god ? ' · GOD' : ''}  [1/2/3 传送  N 清波  G 无敌]`, VIEW_W - 16, 20);
+  }
 
   if (IS_TRAINING && trainingDone) {
     ctx.textAlign = 'center';

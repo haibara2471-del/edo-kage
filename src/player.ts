@@ -91,6 +91,7 @@ export class Player {
   airJumps = 0;
   throwCd = 0;
   t = 0;             // 动画时钟（逻辑帧递增）
+  god = false;       // 开发者无敌（?debug=1 按 G）
 
   get rect(): Rect {
     return { x: this.x, y: this.y, w: this.w, h: this.h };
@@ -121,6 +122,7 @@ export class Player {
   }
 
   takeHit(dmg: number, dirX: number, w: World): void {
+    if (this.god) return;
     if (this.state === 'dead' || this.state === 'dash' || this.invTimer > 0) return;
     this.hp = Math.max(0, this.hp - dmg);
     this.rope = null;
