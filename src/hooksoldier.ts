@@ -108,7 +108,11 @@ export class HookSoldier {
           this.timer = RECOVER_TIME;
           this.atkCd = HOOK_CD;
           w.arrows.push(
-            new Arrow(this.centerX + this.facing * 14, this.y + 12, this.facing * HOOK_SPEED, { dmg: 6, pull: true }),
+            new Arrow(this.centerX + this.facing * 14, this.y + 12, this.facing * HOOK_SPEED, {
+              dmg: 6,
+              pull: true,
+              origin: { x: this.centerX + this.facing * 8, y: this.y + 12 },
+            }),
           );
         }
         break;

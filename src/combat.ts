@@ -49,12 +49,17 @@ export function resolveCombat(w: World): void {
     }
   }
 
-  // 箭矢/钩索命中玩家（钩索把人往施术者方向拽）
+  // 箭矢/钩索命中玩家（钩索把人往施术者方向猛拽）
   for (const a of w.arrows) {
     if (a.dead) continue;
     if (rectsOverlap(a.rect, player.rect)) {
       a.dead = true;
       player.takeHit(a.dmg, a.pull ? -Math.sign(a.vx) : Math.sign(a.vx), w);
+      if (a.pull) {
+        // 钟馗式猛拽：直接被拖向钩使
+        player.vx = -Math.sign(a.vx) * 10;
+        player.vy = -2;
+      }
     }
   }
 }

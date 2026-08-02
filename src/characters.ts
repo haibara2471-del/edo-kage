@@ -338,20 +338,18 @@ export function drawHookSoldier(
   // 持钩臂：蓄力时后摆，其余前持
   const armA = pose.state === 'windup' ? 2.2 : 0.1;
   arm(ctx, 3, -26, armA, P.cloth, P.skin);
-  // 手持三爪钩 + 垂下的锁链环
-  const hx = pose.state === 'windup' ? -4 : 10;
+  // 镰刀钩（蓄力时后摆）+ 垂下的锁链
+  const hx = pose.state === 'windup' ? -4 : 9;
   const hy = -14;
-  ctx.fillStyle = P.spear;
-  for (let i = 0; i < 3; i++) ctx.fillRect(hx - 1.2, hy + 5 + i * 4, 2.4, 2.4); // 链环
   ctx.strokeStyle = P.blade;
-  ctx.lineWidth = 1.8;
-  for (const a of [-0.7, 0, 0.7]) {
-    ctx.beginPath();
-    ctx.moveTo(hx, hy);
-    ctx.lineTo(hx + 7 * Math.cos(a), hy + 7 * Math.sin(a));
-    ctx.stroke();
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(hx, hy, 4.5, -1.4, 1.2);
+  ctx.stroke();
+  ctx.fillStyle = P.spear;
+  for (let i = 0; i < 3; i++) {
+    ctx.fillRect(hx - 3 - i * 2, hy + 4 + i * 4, 2.5, 2.5);
   }
-  r(ctx, hx - 1.5, hy - 2, 3, 3, P.blade);
 
   ctx.restore();
 }
