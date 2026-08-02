@@ -38,7 +38,7 @@ const KI_PER_HIT = 8;
 
 const ROPE_SPEED = 14;    // 绳头飞行速度
 const ROPE_MAX = 340;     // 绳索最大长度
-const ROPE_HOLD = 60;     // 钩住后最多支撑 1 秒
+const ROPE_HOLD = 75;     // 钩住后最多支撑 1.25 秒
 const SWING_PUMP = 0.22;  // 手动摆荡助力（A/D）
 const SWING_AUTO = 0.14;  // 自动泵摆（朝目标侧持续加力，一键荡过去）
 const SWING_MAX = 12;
@@ -255,7 +255,7 @@ export class Player {
     // 自动松手：荡过支点到另一侧、升至接近最高点时自动飞出（手动 W/I 仍可提前松）
     const sideNow = Math.sign(this.centerX - r.ax) || r.side;
     if (sideNow !== r.side && this.vy > -1) {
-      this.vx *= 1.15;
+      this.vx *= 1.25;
       this.detach(w, true);
       return;
     }
@@ -339,15 +339,29 @@ export class Player {
     const move = (input.isHeld('left') ? -1 : 0) + (input.isHeld('right') ? 1 : 0);
     const attacking = this.state === 'attack';
 
-    // 飞索：向移动前上方 45° 抛出（攻击中不可）
+    // 飞索：自动瞄准前上方最近的锚点（无目标时按 45° 抛出）
     if (!attacking && !this.rope && this.grappleCd <= 0 && input.consume('grapple')) {
       const dir = move !== 0 ? move : this.facing;
+      let dx = dir * 0.7071;
+      let dy = -0.7071;
+      let bestD = ROPE_MAX;
+      for (const a of stage.anchors) {
+        const ddx = a.x - this.centerX;
+        const ddy = a.y - (this.y + 10);
+        if (ddy > -16) continue;                                    // 必须在上方
+        if (Math.abs(ddx) > 30 && Math.sign(ddx) !== dir) continue; // 必须在前方
+        const d = Math.hypot(ddx, ddy);
+        if (d < bestD) {
+          bestD = d;
+          dx = ddx / d;
+          dy = ddy / d;
+        }
+      }
       this.rope = {
         phase: 'fly',
         hx: this.centerX,
         hy: this.y + 10,
-        dx: dir * 0.7071,
-        dy: -0.7071,
+        dx, dy,
         traveled: 0,
         ax: 0, ay: 0, len: 0, hold: 0, side: 0,
       };

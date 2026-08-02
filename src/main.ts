@@ -73,6 +73,12 @@ function tick(): void {
 
   player.update(world);
 
+  // 结界：波次未清完时封锁右路（含瞬身/摆荡飞跃）
+  if (waves.barrierX !== null && player.x + player.w > waves.barrierX) {
+    player.x = waves.barrierX - player.w;
+    if (player.vx > 0) player.vx = 0;
+  }
+
   for (const e of world.enemies) e.update(world);
   world.enemies = world.enemies.filter((e) => !e.removable);
 
@@ -105,6 +111,7 @@ function render(): void {
   ctx.save();
   ctx.translate(-Math.round(world.camX), 0);
   stage.drawGround(ctx);
+  waves.draw(ctx, stage.groundY, frameCount);
   for (const p of world.projectiles) p.draw(ctx);
   for (const e of world.enemies) e.draw(ctx);
   player.draw(ctx);

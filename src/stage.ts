@@ -13,30 +13,32 @@ export interface Anchor { x: number; y: number; }
  * 松树石灯笼 / 苔庭假山 / 深沟+吊索横梁（忍者突袭式摆荡路段）
  */
 export class Stage {
-  readonly width = 2600;
+  readonly width = 2750;
   readonly groundY = 480;
 
-  /** 地面分段——间隙即天堑，坠落即任务失败 */
+  /** 地面分段——间隙即天堑，坠落即任务失败（三段战区被两条深沟隔开） */
   readonly grounds: { x0: number; x1: number }[] = [
     { x0: 0, x1: 1050 },
-    { x0: 1260, x1: 2100 },
-    { x0: 2310, x1: 2600 },
+    { x0: 1350, x1: 1950 },
+    { x0: 2310, x1: 2750 },
   ];
 
-  /** 吊在深沟上方的横梁（单杠），摆荡支点 */
+  /** 吊在深沟上方的横梁（单杠），每条沟两根，摆荡支点 */
   readonly beams: Rect[] = [
-    { x: 1100, y: 218, w: 110, h: 10 },
-    { x: 2150, y: 218, w: 110, h: 10 },
+    { x: 1080, y: 218, w: 100, h: 10 },
+    { x: 1230, y: 218, w: 100, h: 10 },
+    { x: 1980, y: 218, w: 100, h: 10 },
+    { x: 2130, y: 218, w: 100, h: 10 },
   ];
 
   /** 深沟前的警示木牌 */
-  readonly signs: { x: number }[] = [{ x: 1000 }, { x: 2050 }];
+  readonly signs: { x: number }[] = [{ x: 1000 }, { x: 1890 }];
 
   readonly platforms: Rect[] = [
     { x: 380, y: 362, w: 130, h: 16 },
     { x: 880, y: 300, w: 130, h: 16 },
-    { x: 1380, y: 346, w: 130, h: 16 },
-    { x: 1880, y: 288, w: 150, h: 16 },
+    { x: 1420, y: 346, w: 130, h: 16 },
+    { x: 1780, y: 288, w: 150, h: 16 },
     { x: 2410, y: 350, w: 120, h: 16 },
   ];
 
@@ -74,9 +76,9 @@ export class Stage {
     }
     this.pines = [
       { x: 180, s: 1.1 }, { x: 640, s: 0.9 }, { x: 1450, s: 1.25 },
-      { x: 1800, s: 1.0 }, { x: 2420, s: 1.1 },
+      { x: 1800, s: 1.0 }, { x: 2420, s: 1.1 }, { x: 2620, s: 0.95 },
     ];
-    this.lanterns = [{ x: 340 }, { x: 760 }, { x: 1350 }, { x: 1980 }, { x: 2450 }];
+    this.lanterns = [{ x: 340 }, { x: 760 }, { x: 1420 }, { x: 1900 }, { x: 2600 }];
 
     // 塔顶台面可站立（假山 bump 只给前 5 个岩石平台生成）
     for (const t of this.towers) this.platforms.push({ x: t.x - 8, y: t.topY, w: 44, h: 8 });
@@ -90,10 +92,16 @@ export class Stage {
       this.rockBumps.push(bumps);
     }
 
-    // 锚点：石尖 + 櫓顶 + 横梁中心（半径吸附，宽容判定）
+    // 锚点：石尖 + 櫓顶 + 横梁两端与中心（半径吸附，宽容判定）
     for (const p of this.platforms.slice(0, 5)) this.anchors.push({ x: p.x + p.w / 2, y: p.y - 10 });
     for (const t of this.towers) this.anchors.push({ x: t.x + 14, y: t.topY - 8 });
-    for (const b of this.beams) this.anchors.push({ x: b.x + b.w / 2, y: b.y + b.h / 2 });
+    for (const b of this.beams) {
+      this.anchors.push(
+        { x: b.x + b.w / 2, y: b.y + b.h / 2 },
+        { x: b.x + 6, y: b.y + b.h / 2 },
+        { x: b.x + b.w - 6, y: b.y + b.h / 2 },
+      );
+    }
 
     // 绳索可钩实体：横梁 + 全部平台 + 櫓柱
     this.ropeTargets.push(...this.beams, ...this.platforms);
@@ -186,6 +194,7 @@ export class Stage {
     this.mountain(ctx, 1150, 340, 160);
     this.mountain(ctx, 1600, 460, 210);
     this.mountain(ctx, 2150, 320, 150);
+    this.mountain(ctx, 2450, 380, 170);
     this.drawPagoda(ctx, 460, this.groundY, 1.0);
     ctx.restore();
 
@@ -196,6 +205,8 @@ export class Stage {
     this.drawWall(ctx, 720, 700);
     this.drawBuilding(ctx, 1450, 360, 120);
     this.drawTorii(ctx, 2080, this.groundY, 1.1, '#2c3560');
+    this.drawWall(ctx, 1850, 450);
+    this.drawBuilding(ctx, 2350, 340, 130);
     ctx.restore();
 
     // 近景：松树 + 石灯笼（视差 0.7）
