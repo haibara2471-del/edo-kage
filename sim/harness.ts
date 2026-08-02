@@ -12,6 +12,7 @@ import { Flyer } from '../src/flyer';
 import { HookSoldier } from '../src/hooksoldier';
 import { Bruiser } from '../src/bruiser';
 import { Shaman } from '../src/shaman';
+import { Boss } from '../src/boss';
 import { Effects } from '../src/effects';
 import { Codex } from '../src/codex';
 import { resolveCombat } from '../src/combat';
@@ -261,6 +262,30 @@ function crowDive(): Result {
   };
 }
 
+function bossFight(): Result {
+  const { world, input, player, stage } = makeWorld();
+  player.x = 400;
+  player.y = stage.groundY - player.h;
+  const boss = new Boss(player.x + 70, stage.groundY - 40);
+  world.enemies.push(boss);
+
+  // 第一段：站桩 400 ticks，Boss 应能命中玩家
+  for (let i = 0; i < 400; i++) step(world);
+  const bossHitsPlayer = player.hp < 100;
+
+  // 第二段：近身连打 400 ticks，Boss 应掉血（可能触发残像/二阶段）
+  for (let i = 0; i < 400; i++) {
+    if (i % 22 === 0) input.tap('attack');
+    step(world);
+  }
+  const bossDamaged = boss.hp < 200;
+  return {
+    name: 'Boss「龙」：能攻击玩家/能被击伤',
+    pass: bossHitsPlayer && bossDamaged,
+    detail: `玩家HP=${player.hp} BossHP=${boss.hp} 二阶段=${boss.phase2}`,
+  };
+}
+
 // ———————————————— 运行 ————————————————
 
 const results: Result[] = [
@@ -273,6 +298,7 @@ const results: Result[] = [
   hookPull(),
   shamanPoison(),
   crowDive(),
+  bossFight(),
 ];
 
 let failed = 0;

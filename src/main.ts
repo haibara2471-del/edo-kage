@@ -6,7 +6,7 @@ import { Waves } from './waves';
 import { Title } from './title';
 import { Codex } from './codex';
 import { resolveCombat } from './combat';
-import { drawHUD } from './ui';
+import { drawHUD, drawBossBar } from './ui';
 import { clamp } from './types';
 import type { World } from './world';
 
@@ -110,10 +110,14 @@ function tick(): void {
 
   player.update(world);
 
-  // 结界：波次未清完时封锁右路（含瞬身/摆荡飞跃）
+  // 结界：波次未清完时封锁右路；Boss 战同时封锁左路
   if (waves.barrierX !== null && player.x + player.w > waves.barrierX) {
     player.x = waves.barrierX - player.w;
     if (player.vx > 0) player.vx = 0;
+  }
+  if (waves.barrierL !== null && player.x < waves.barrierL) {
+    player.x = waves.barrierL;
+    if (player.vx < 0) player.vx = 0;
   }
 
   for (const e of world.enemies) e.update(world);
@@ -170,6 +174,10 @@ function render(): void {
   ctx.restore();
 
   drawHUD(ctx, world, waves, VIEW_W);
+
+  // Boss 血条
+  const boss = world.enemies.find((e) => e.codexId === 'boss') as { hp: number; maxHp: number; dead: boolean } | undefined;
+  if (boss && !boss.dead) drawBossBar(ctx, '龍', boss.hp, boss.maxHp, VIEW_W);
 
   // 「禅」无敌指示：常驻小金印 + 触发时大字闪现
   if (player.god) {

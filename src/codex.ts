@@ -1,7 +1,7 @@
-import { drawAshigaru, drawFlyer, drawArcher, drawHookSoldier, drawBruiser, drawShaman } from './characters';
+import { drawAshigaru, drawFlyer, drawArcher, drawHookSoldier, drawBruiser, drawShaman, drawBoss } from './characters';
 import type { Input } from './input';
 
-export type CodexId = 'ashigaru' | 'archer' | 'hook' | 'bruiser' | 'shaman' | 'crow' | 'bat';
+export type CodexId = 'ashigaru' | 'archer' | 'hook' | 'bruiser' | 'shaman' | 'crow' | 'bat' | 'boss';
 
 interface Entry {
   id: CodexId;
@@ -79,6 +79,10 @@ const ENTRIES: Entry[] = [
   {
     id: 'bat', jp: '蝙蝠', cn: '檐下魔蝠', hp: 8, atk: 5,
     flavor: ['飞得低、扑得快。', '二段跳时小心头顶。'],
+  },
+  {
+    id: 'boss', jp: '龍', cn: '异邦武僧', hp: 200, atk: 12,
+    flavor: ['三连踢/飞踢/升龙/残像。', '他的招都有前摇——', '看清楚了再动手。'],
   },
 ];
 
@@ -243,6 +247,9 @@ export class Codex {
             break;
           case 'shaman':
             drawShaman(ctx, -10, -16, 20, 32, 1, { state: 'idle', t, timer: 0, flash: 0 });
+            break;
+          case 'boss':
+            drawBoss(ctx, -11, -20, 22, 40, 1, { state: 'idle', t, timer: 0, flash: 0 });
             break;
           default:
             drawFlyer(ctx, -9, -6, 18, 12, 1, e.id, t, 'circle', 0);

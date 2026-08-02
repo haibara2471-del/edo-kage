@@ -290,7 +290,119 @@ export function drawFlyer(
   ctx.restore();
 }
 
-// ———————————————— 精英怪：钩使 / 大力金刚 / 蛊术师 ————————————————
+// ———————————————— Boss「龙」 ————————————————
+
+const BOSS: Pal = {
+  suit: '#e8c840', suitD: '#c8a828', stripe: '#181818', skin: '#e8b088',
+  hair: '#181818', nunchaku: '#6a5238', belt: '#181818', boots: '#181818',
+  metal: '#888888', blade: '#e8ecf8',
+};
+const WHITE_BOSS: Pal = whiten(BOSS);
+
+export interface BossPose {
+  state: string;
+  t: number;
+  timer: number;
+  flash: number;
+  comboStage?: number;
+}
+
+/** 「龙」：黄黑连体衣武僧（李小龙彩蛋），手持双节棍 */
+export function drawBoss(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number,
+  facing: number, pose: BossPose,
+): void {
+  const white =
+    pose.flash > 0 ||
+    ((pose.state === 'dashWindup' || pose.state === 'sweepWindup') && Math.floor(pose.timer / 3) % 2 === 0);
+  const P = white ? WHITE_BOSS : BOSS;
+  const t = pose.t;
+  ctx.save();
+  ctx.translate(x + w / 2, y + h);
+  ctx.scale(facing, 1);
+
+  if (pose.state === 'dead') {
+    r(ctx, -14, -9, 26, 9, P.suit);
+    r(ctx, 11, -9, 9, 9, P.skin);
+    r(ctx, 11, -11, 9, 3, P.hair);
+    ctx.restore();
+    return;
+  }
+
+  let bob = 0, lean = 0, legF = 0.06, legB = -0.06, armF = 0.4, armB = -0.35;
+  let kickHigh = false;
+  let flyKick = false;
+  let crouch = false;
+
+  switch (pose.state) {
+    case 'walk': {
+      const c = t * 0.25;
+      legF = Math.sin(c) * 0.55;
+      legB = -legF;
+      bob = -Math.abs(Math.sin(c));
+      armF = 0.5 + Math.sin(c) * 0.1;
+      armB = -0.45;
+      break;
+    }
+    case 'combo': {
+      const s = pose.comboStage ?? 1;
+      const tm = pose.timer;
+      if (s === 1) { armF = -1.2 + Math.min(1, tm / 6) * 1.2; legF = 0.2; }        // 直拳
+      else if (s === 2) { armB = -1.6 + Math.min(1, tm / 6) * 1.4; legF = 0.5; }   // 回身踢
+      else { kickHigh = true; armF = -0.8; armB = 0.7; lean = -0.1; }              // 高踢
+      break;
+    }
+    case 'dashWindup': crouch = true; armF = -1.4; armB = -1.6; legF = 0.7; legB = -0.7; lean = 0.15; break;
+    case 'dashKick': flyKick = true; lean = 1.1; armF = -1.7; armB = -1.9; break;  // 飞踢突进
+    case 'rising': legF = -1.3; legB = 0.8; armF = -2.2; armB = 0.5; break;        // 升龙
+    case 'sweepWindup': armF = 2.4; lean = -0.12; legF = 0.35; legB = -0.45; break;
+    case 'sweep': armF = -0.2; lean = 0.3; legF = -0.4; legB = 0.5; break;
+    case 'hit': lean = -0.28; armF = -0.9; armB = 0.9; legF = 0.45; legB = -0.55; break;
+    default: bob = Math.sin(t * 0.07) * 0.8; armF = 0.45 + Math.sin(t * 0.07) * 0.06; armB = -0.4;
+  }
+
+  ctx.translate(0, bob + (crouch ? 3 : 0));
+  ctx.rotate(lean);
+
+  // 腿（高踢/飞踢覆盖默认步态）
+  if (flyKick) {
+    leg(ctx, -2, -16, -1.3, P.suitD, P.boots);
+    leg(ctx, 2, -16, 0.7, P.suit, P.boots);
+  } else if (kickHigh) {
+    leg(ctx, -2, -16, -0.5, P.suitD, P.boots);
+    leg(ctx, 2, -16, -1.5, P.suit, P.boots);
+  } else {
+    leg(ctx, -2, -16, legB, P.suitD, P.boots);
+    leg(ctx, 2, -16, legF, P.suit, P.boots);
+  }
+
+  arm(ctx, -3.5, -28, armB, P.suitD, P.skin);
+
+  // 黄色连体衣 + 黑侧条纹
+  r(ctx, -5.5, -31, 11, 16, P.suit);
+  r(ctx, 2, -31, 3, 16, P.stripe);
+  r(ctx, -5.5, -19.5, 11, 2.5, P.belt);
+
+  // 头：脸 + 黑发 + 怒目
+  r(ctx, -4.5, -39, 9.5, 9, P.skin);
+  r(ctx, -4.5, -39, 9.5, 3.5, P.hair);
+  r(ctx, 3, -34.5, 1.6, 1.6, white ? '#ffffff' : '#101018');
+
+  // 前臂 + 双节棍（手持一棍，链垂一棍晃悠）
+  arm(ctx, 3.5, -28, armF, P.suit, P.skin);
+  ctx.save();
+  ctx.translate(3.5, -28);
+  ctx.rotate(armF);
+  ctx.translate(0, 11.5);
+  r(ctx, 0, -1.2, 8, 2.4, P.nunchaku);
+  const sw = Math.sin(t * 0.3) * 2;
+  r(ctx, 7, -1 + sw, 2, 2, P.metal);
+  r(ctx, 8, 1 + sw, 7, 2.2, P.nunchaku);
+  ctx.restore();
+
+  ctx.restore();
+}
 
 const HOOK: Pal = {
   armor: '#5a6a7a', armorD: '#46525e', cloth: '#4a4458', skin: '#ecc090',

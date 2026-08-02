@@ -5,9 +5,10 @@ import { Archer } from './archer';
 import { HookSoldier } from './hooksoldier';
 import { Bruiser } from './bruiser';
 import { Shaman } from './shaman';
+import { Boss } from './boss';
 import type { World } from './world';
 
-type Phase = 'start' | 'fight' | 'advance' | 'done';
+type Phase = 'start' | 'fight' | 'advance' | 'bossfight' | 'done';
 
 /** 战区边界（造梦西游式区域封锁；地面已连通，不再依赖地形分段） */
 const ZONES = [
@@ -43,6 +44,8 @@ export class Waves {
 
   /** 结界位置（封锁右路），null 表示开放 */
   barrierX: number | null = null;
+  /** 左结界（Boss 战封场） */
+  barrierL: number | null = null;
   announceTimer = 0;
   done = false;
 
@@ -58,9 +61,7 @@ export class Waves {
       case 'fight':
         if (w.enemies.length === 0) {
           if (this.wave >= this.total) {
-            this.phase = 'done';
-            this.done = true;
-            this.barrierX = null;
+            this.spawnBoss(w);
           } else {
             this.phase = 'advance';
             this.barrierX = null;
@@ -74,9 +75,31 @@ export class Waves {
         break;
       }
 
+      case 'bossfight':
+        if (w.enemies.length === 0) {
+          this.phase = 'done';
+          this.done = true;
+          this.barrierX = null;
+          this.barrierL = null;
+        }
+        break;
+
       case 'done':
         break;
     }
+  }
+
+  /** Boss 战：「龙」携双钩使登场，结界封两侧 */
+  private spawnBoss(w: World): void {
+    this.phase = 'bossfight';
+    this.announceTimer = 120;
+    const zone = ZONES[2];
+    this.barrierL = zone.x0 + 12;
+    this.barrierX = zone.x1 - 12;
+    const cx = (zone.x0 + zone.x1) / 2;
+    w.enemies.push(new Boss(cx + 100, w.stage.groundY - 40));
+    w.enemies.push(new HookSoldier(cx - 120, w.stage.groundY - 34));
+    w.enemies.push(new HookSoldier(cx + 220, w.stage.groundY - 34));
   }
 
   private startWave(w: World, zoneIdx: number): void {
@@ -116,9 +139,13 @@ export class Waves {
 
   /** 结界绘制（世界坐标系下调用）：紫色封印墙 + 上浮符咒粒子 */
   draw(ctx: CanvasRenderingContext2D, groundY: number, t: number): void {
-    if (this.barrierX === null) return;
-    const x = this.barrierX;
+    for (const x of [this.barrierX, this.barrierL]) {
+      if (x === null) continue;
+      this.drawBarrier(ctx, x, groundY, t);
+    }
+  }
 
+  private drawBarrier(ctx: CanvasRenderingContext2D, x: number, groundY: number, t: number): void {
     ctx.globalAlpha = 0.3 + Math.sin(t * 0.12) * 0.08;
     ctx.fillStyle = '#8a5aff';
     ctx.fillRect(x - 3, groundY - 190, 6, 190);
@@ -142,6 +169,7 @@ export class Waves {
       case 'start': return '敵襲……';
       case 'fight': return `第 ${this.wave} / ${this.total} 波`;
       case 'advance': return '前進 →';
+      case 'bossfight': return '最終決戦「龍」';
       case 'done': return '任務完了 · 按 R 重开';
     }
   }

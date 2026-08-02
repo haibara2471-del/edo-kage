@@ -18,6 +18,32 @@ function bar(
   ctx.fillText(label, x + 4, y + h - 2);
 }
 
+/** Boss 血条：顶部居中宽条 + 名字 */
+export function drawBossBar(
+  ctx: CanvasRenderingContext2D,
+  name: string,
+  hp: number,
+  maxHp: number,
+  viewW: number,
+): void {
+  const w = 320;
+  const x = (viewW - w) / 2;
+  const y = 44;
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fillRect(x - 3, y - 3, w + 6, 16);
+  ctx.fillStyle = '#3a0d14';
+  ctx.fillRect(x, y, w, 10);
+  ctx.fillStyle = '#e04040';
+  ctx.fillRect(x, y, w * Math.max(0, Math.min(1, hp / maxHp)), 10);
+  ctx.strokeStyle = '#8a5a60';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, w, 10);
+  ctx.fillStyle = '#e8e4c8';
+  ctx.font = 'bold 14px "Yu Mincho","MS Mincho",serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(name, viewW / 2, y - 6);
+}
+
 /** HUD：血条 / 气条 / 波次 / 操作提示 */
 export function drawHUD(ctx: CanvasRenderingContext2D, w: World, waves: Waves, viewW: number): void {
   const p = w.player;
