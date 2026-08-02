@@ -224,6 +224,11 @@
   - 数据收集为**全自动**：每局结束自动上报，无需任何手动操作；作弊局（禅/传送）除外
 - **v0.25（回放时间轴修复）**：回放开局从"直接进入 play"改为**从标题画面开始**——日志帧是绝对时间轴（含标题停留时长），此前直接进 play 导致敌人提前刷新、输入与敌人错位（人物站桩挨打、流程不符）；现在记录的 J 键在同一绝对帧触发开局，完全对齐
 - **v0.26（玩家身份：忍名登记）**：首次进游戏在标题画面**游戏内输入框登记忍名**（≤12 字符，localStorage 持久化免重复输入，按 N 改名）；每局战报带 `name` 字段，多人共玩可按人归类/过滤（表需 `alter table runs add column name text;`）
+- **v0.27（RL 环境 + PPO 烟测通过）**：
+  - **架构**：Node env server（`sim/env-server.ts`，真实 TS 游戏代码无头跑，localhost HTTP 暴露 reset/step/obs）+ Python gymnasium 客户端 + stable-baselines3 PPO——游戏逻辑单一来源，不重写
+  - 观测 42 维（玩家状态 + 最近 3 敌相对位置/血/类型/状态 + 飞行物）、动作 14 离散组合、奖励（伤害交换/击杀/胜负/逼近/时间惩罚）、场景 ashigaru/wave1/boss
+  - **烟测结果：36 秒 4 万步，AI 以 100% 胜率学会击杀足轻**（`ppo_ashigaru.zip`）；吞吐 ~2200fps（requests.Session keep-alive 解决 Windows 端口耗尽；MLP 用 CPU 训练）
+  - 环境修复记录：conda 频道已配清华镜像；pip 升级 torch 导致环境损坏的教训（本项目一律 conda 装包 + numpy<2）
 
 ## 10. TODO / backlog
 

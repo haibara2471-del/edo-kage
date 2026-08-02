@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "test:sim": "tsx sim/harness.ts"
+    "test:sim": "tsx sim/harness.ts",
+    "env": "tsx sim/env-server.ts"
   },
   "devDependencies": {
     "tsx": "^4.23.1",
