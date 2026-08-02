@@ -8,6 +8,7 @@ export interface RunReport {
   duration: number;      // 逻辑帧数（60 = 1 秒）
   hpLeft: number;
   log: { f: number; a: string; d: number }[]; // 输入日志 [帧, 动作, 按下1/松开0]
+  env: 'local' | 'prod'; // 本地开发 or 线上
   ua: string;
   at: string;            // ISO 时间
 }

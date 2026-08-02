@@ -55,6 +55,7 @@ reseed(seed);
 
 let reported = false;
 let deathDelay = -1;
+let debugUsed = false; // 开过「禅」/传送/清场的局不上报（作弊局无统计价值）
 
 const zenBuf: { code: string; time: number }[] = [];
 
@@ -68,6 +69,7 @@ window.addEventListener('keydown', (e) => {
     const recent = zenBuf.every((k) => performance.now() - k.time < 2000);
     if (seq === 'KeyZ,KeyE,KeyN' && recent) {
       player.god = !player.god;
+      if (player.god) debugUsed = true;
       zenFlash = 90;
       zenBuf.length = 0;
     }
@@ -80,6 +82,7 @@ window.addEventListener('keydown', (e) => {
 /** 传送/清场调试键：仅「禅」模式（Z-E-N 开启无敌）下生效，玩家无法使用 */
 window.addEventListener('keydown', (e) => {
   if (mode !== 'play' || !player.god) return;
+  debugUsed = true;
   const ZONES = [
     { x0: 0, x1: 1050 },
     { x0: 1350, x1: 1950 },
@@ -157,13 +160,14 @@ function tick(): void {
   waves.update(world);
   effects.update();
 
-  // 每局结束时上报一次（通关 / 死亡 1.5 秒后）
-  if (!reported) {
+  // 每局结束时上报一次（通关 / 死亡 1.5 秒后；作弊局不上报）
+  if (!reported && !debugUsed) {
+    const env: 'local' | 'prod' = location.hostname === 'localhost' ? 'local' : 'prod';
     if (waves.done) {
       reported = true;
       void reportRun({
         v: 1, seed, result: 'clear', wave: waves.wave, duration: frameCount,
-        hpLeft: player.hp, log: input.log, ua: navigator.userAgent, at: new Date().toISOString(),
+        hpLeft: player.hp, log: input.log, env, ua: navigator.userAgent, at: new Date().toISOString(),
       });
     } else if (player.state === 'dead') {
       if (deathDelay < 0) deathDelay = 90;
@@ -171,7 +175,7 @@ function tick(): void {
         reported = true;
         void reportRun({
           v: 1, seed, result: 'dead', wave: waves.wave, duration: frameCount,
-          hpLeft: 0, log: input.log, ua: navigator.userAgent, at: new Date().toISOString(),
+          hpLeft: 0, log: input.log, env, ua: navigator.userAgent, at: new Date().toISOString(),
         });
       }
     }
