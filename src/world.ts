@@ -3,10 +3,10 @@ import type { Input } from './input';
 import type { Effects } from './effects';
 import type { Stage } from './stage';
 import type { Player } from './player';
-import type { Projectile } from './projectile';
+import type { Projectile, Arrow } from './projectile';
 import type { Codex, CodexId } from './codex';
 
-/** 可被攻击/可攻击玩家的实体（足轻、飞行敌人……） */
+/** 可被攻击/可攻击玩家的实体（足轻、弓箭手、飞行敌人……） */
 export interface Hittable {
   readonly rect: Rect;
   readonly dead: boolean;
@@ -29,6 +29,7 @@ export interface World {
   player: Player;
   enemies: Hittable[];
   projectiles: Projectile[];
+  arrows: Arrow[];
   codex: Codex;
   camX: number;
 }

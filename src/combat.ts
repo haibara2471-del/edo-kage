@@ -48,4 +48,13 @@ export function resolveCombat(w: World): void {
       player.takeHit(e.contactDamage, e.centerX < player.centerX ? 1 : -1, w);
     }
   }
+
+  // 箭矢命中玩家
+  for (const a of w.arrows) {
+    if (a.dead) continue;
+    if (rectsOverlap(a.rect, player.rect)) {
+      a.dead = true;
+      player.takeHit(a.dmg, Math.sign(a.vx), w);
+    }
+  }
 }

@@ -414,7 +414,7 @@ export class Player {
       }
     }
 
-    // 手里剑（攻击中不可）
+    // 手里剑·扇形三连（攻击中不可）：上中下三发，覆盖纵向空间
     if (
       this.state !== 'attack' &&
       this.throwCd <= 0 &&
@@ -423,9 +423,13 @@ export class Player {
     ) {
       this.ki -= SHURIKEN_COST;
       this.throwCd = THROW_CD;
-      w.projectiles.push(
-        new Projectile(this.centerX + this.facing * 16, this.y + 12, this.facing * SHURIKEN_SPEED),
-      );
+      const px = this.centerX + this.facing * 16;
+      const py = this.y + 12;
+      for (const a of [-0.24, 0, 0.24]) {
+        w.projectiles.push(
+          new Projectile(px, py, Math.cos(a) * SHURIKEN_SPEED * this.facing, Math.sin(a) * SHURIKEN_SPEED),
+        );
+      }
     }
 
     // 水平移动

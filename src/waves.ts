@@ -1,6 +1,7 @@
 import { clamp } from './types';
 import { Enemy } from './enemy';
 import { Flyer } from './flyer';
+import { Archer } from './archer';
 import type { World } from './world';
 
 type Phase = 'start' | 'fight' | 'advance' | 'done';
@@ -12,10 +13,16 @@ type Phase = 'start' | 'fight' | 'advance' | 'done';
 export class Waves {
   wave = 0;
   readonly total = 3;
-  private comps: { ash: number; crow: number; bat: number }[] = [
-    { ash: 3, crow: 0, bat: 0 },   // 第一战区：纯足轻教学
-    { ash: 3, crow: 1, bat: 0 },   // 第二战区：混入一只乌鸦
-    { ash: 4, crow: 0, bat: 1 },   // 第三战区：足轻群 + 蝙蝠
+  private comps: { ash: number; crow: number; bat: number; archer: number }[] = [
+    { ash: 3, crow: 0, bat: 0, archer: 0 }, // 第一战区：纯足轻教学
+    { ash: 3, crow: 1, bat: 0, archer: 1 }, // 第二战区：乌鸦 + 高台弓箭手
+    { ash: 4, crow: 0, bat: 1, archer: 1 }, // 第三战区：足轻群 + 蝙蝠 + 弓箭手
+  ];
+  /** 每战区弓箭手的高台位置（与 stage.platforms 对应） */
+  private archerSpots: { x: number; y: number }[][] = [
+    [],
+    [{ x: 1485, y: 346 - 34 }],
+    [{ x: 2470, y: 350 - 34 }],
   ];
   /** 深沟守卫：清波后推进时刷出，悬在沟上方骚扰摆荡中的玩家 */
   private gapGuards: { crow: number; bat: number }[] = [
@@ -101,6 +108,10 @@ export class Waves {
     }
     for (let i = 0; i < comp.bat; i++) {
       w.enemies.push(new Flyer(zone.x1 - 240 - i * 140, w.stage.groundY - 160, 'bat'));
+    }
+    for (let i = 0; i < comp.archer; i++) {
+      const spot = this.archerSpots[zoneIdx][i];
+      if (spot) w.enemies.push(new Archer(spot.x, spot.y));
     }
   }
 

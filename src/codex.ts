@@ -1,7 +1,7 @@
-import { drawAshigaru, drawFlyer } from './characters';
+import { drawAshigaru, drawFlyer, drawArcher } from './characters';
 import type { Input } from './input';
 
-export type CodexId = 'ashigaru' | 'crow' | 'bat';
+export type CodexId = 'ashigaru' | 'archer' | 'crow' | 'bat';
 
 interface Entry {
   id: CodexId;
@@ -27,7 +27,7 @@ const SKILLS: Skill[] = [
   },
   {
     key: 'K', jp: '手裏剣', cn: '手里剑',
-    desc: ['耗气 10 的远程攻击。', '够不着的飞行敌人，射下来。', '气靠短刀命中回复。'],
+    desc: ['耗气 10，扇形三连掷。', '上中下三发覆盖纵向空间，', '对飞行敌人尤为有效。'],
   },
   {
     key: 'L', jp: '瞬身', cn: '瞬身术',
@@ -47,6 +47,10 @@ const ENTRIES: Entry[] = [
   {
     id: 'ashigaru', jp: '足軽', cn: '长枪足轻', hp: 30, atk: 10,
     flavor: ['大名的杂兵，但枪比你的刀长。', '别正面硬拼——跳过去，或瞬身绕后。'],
+  },
+  {
+    id: 'archer', jp: '弓兵', cn: '高台弓箭手', hp: 15, atk: 8,
+    flavor: ['占据高台的射手，箭走水平。', '跳箭、瞬身穿箭，或用镖远程对射。'],
   },
   {
     id: 'crow', jp: '烏', cn: '不祥乌鸦', hp: 12, atk: 8,
@@ -189,9 +193,9 @@ export class Codex {
     ctx.textAlign = 'center';
     ctx.fillText(`已遭遇 ${this.seen.size} / ${ENTRIES.length}（命中过一次即解锁）`, W / 2, 144);
 
-    const cardW = 200;
+    const cardW = 190;
     const cardH = 268;
-    const gap = 40;
+    const gap = 24;
     const totalW = ENTRIES.length * cardW + (ENTRIES.length - 1) * gap;
     const x0 = (W - totalW) / 2;
     const y0 = 166;
@@ -212,6 +216,8 @@ export class Codex {
         ctx.scale(2.6, 2.6);
         if (e.id === 'ashigaru') {
           drawAshigaru(ctx, -11, -17, 22, 34, 1, { state: 'idle', t, timer: 0, flash: 0 });
+        } else if (e.id === 'archer') {
+          drawArcher(ctx, -10, -17, 20, 34, 1, { state: 'idle', t, timer: 0, flash: 0 });
         } else {
           drawFlyer(ctx, -9, -6, 18, 12, 1, e.id, t, 'circle', 0);
         }

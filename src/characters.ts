@@ -299,6 +299,109 @@ const ASH: Pal = {
 };
 const WHITE: Pal = Object.fromEntries(Object.keys(ASH).map((k) => [k, '#ffffff']));
 
+function whiten(p: Pal): Pal {
+  return Object.fromEntries(Object.keys(p).map((k) => [k, '#ffffff']));
+}
+
+// ———————————————— 弓箭手 ————————————————
+
+const ARCHER: Pal = {
+  armor: '#3f6a5a', armorD: '#2e4c40', cloth: '#46405a', skin: '#ecc090',
+  band: '#284a3e', bow: '#8a6a3a', string: '#d8d0b8', arrow: '#c09860',
+  boots: '#2e2840', belt: '#4a3828',
+};
+const WHITE_ARCHER: Pal = whiten(ARCHER);
+
+export interface ArcherPose {
+  state: string;   // idle / aim / recover / hit / dead
+  t: number;
+  timer: number;
+  flash: number;
+}
+
+/** 弓箭手：轻装绿甲 + 头巾，竖持长弓，瞄准后放箭（放箭前闪白警告） */
+export function drawArcher(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number,
+  facing: number, pose: ArcherPose,
+): void {
+  const white = pose.flash > 0 || (pose.state === 'aim' && pose.timer < 12 && Math.floor(pose.t / 3) % 2 === 0);
+  const P = white ? WHITE_ARCHER : ARCHER;
+  const t = pose.t;
+  ctx.save();
+  ctx.translate(x + w / 2, y + h);
+  ctx.scale(facing, 1);
+
+  if (pose.state === 'dead') {
+    r(ctx, -15, -9, 26, 9, P.armor);
+    r(ctx, 10, -10, 9, 9, P.cloth);
+    ctx.strokeStyle = P.bow; // 掉落的弓
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(-14, -4, 8, -1.2, 1.2);
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
+  const bob = pose.state === 'idle' ? Math.sin(t * 0.05) * 0.5 : 0;
+  ctx.translate(0, bob);
+
+  // 开立站姿
+  leg(ctx, -3, -14, 0.28, P.cloth, P.boots);
+  leg(ctx, 3, -14, -0.28, P.cloth, P.boots);
+
+  // 后臂（拉弦手，瞄准时后收）
+  arm(ctx, -3, -26, pose.state === 'aim' ? 0.9 : -0.4, P.cloth, P.skin);
+
+  // 轻甲躯干
+  r(ctx, -6, -29, 12, 15, P.armor);
+  r(ctx, -6, -24, 12, 2, P.armorD);
+  r(ctx, -6, -19, 12, 2, P.armorD);
+  r(ctx, -6, -16, 12, 3, P.belt);
+
+  // 头 + 头巾
+  r(ctx, -4.5, -34, 9, 6, P.skin);
+  r(ctx, 1, -32.3, 1.6, 1.6, white ? '#ffffff' : '#101018');
+  r(ctx, -5, -35.5, 10, 3.5, P.band);
+  r(ctx, -8, -34, 3.5, 2, P.band); // 头巾结
+
+  // 前持弓臂
+  arm(ctx, 3, -26, 0.05, P.cloth, P.skin);
+
+  // 长弓（竖弧，弓口朝前）
+  const bowX = 8;
+  const bowY = -22;
+  const tipY = 9.8;
+  const pull = pose.state === 'aim' ? 8 : 0;
+  ctx.strokeStyle = P.bow;
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.arc(bowX, bowY, 11, -1.1, 1.1);
+  ctx.stroke();
+  // 弓弦
+  ctx.strokeStyle = P.string;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(bowX + 5, bowY - tipY);
+  ctx.lineTo(bowX + 5 - pull, bowY);
+  ctx.lineTo(bowX + 5, bowY + tipY);
+  ctx.stroke();
+  // 搭箭（瞄准时可见）
+  if (pose.state === 'aim') {
+    ctx.strokeStyle = P.arrow;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(bowX + 5 - pull, bowY);
+    ctx.lineTo(bowX + 14, bowY);
+    ctx.stroke();
+    ctx.fillStyle = P.blade;
+    ctx.fillRect(bowX + 12, bowY - 1.5, 3, 3);
+  }
+
+  ctx.restore();
+}
+
 export interface AshPose {
   state: string;
   t: number;
