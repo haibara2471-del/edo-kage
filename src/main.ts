@@ -45,9 +45,24 @@ const world: World = {
 type Mode = 'title' | 'play' | 'codex';
 let mode: Mode = 'title';
 let frameCount = 0;
+let zenFlash = 0; // 「禅」密令触发提示
+
+const zenBuf: { code: string; time: number }[] = [];
 
 window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyR' && mode === 'play') location.reload();
+  // 「禅」密令：2 秒内连按 Z-E-N 切换无敌（任何模式下可用，无需 debug）
+  if (mode === 'play' && ['KeyZ', 'KeyE', 'KeyN'].includes(e.code)) {
+    zenBuf.push({ code: e.code, time: performance.now() });
+    if (zenBuf.length > 3) zenBuf.shift();
+    const seq = zenBuf.map((k) => k.code).join(',');
+    const recent = zenBuf.every((k) => performance.now() - k.time < 2000);
+    if (seq === 'KeyZ,KeyE,KeyN' && recent) {
+      player.god = !player.god;
+      zenFlash = 90;
+      zenBuf.length = 0;
+    }
+  }
   if (!DEBUG || mode !== 'play') return;
   // —— 开发者调试（?debug=1）——
   const zones = stage.grounds;
@@ -69,6 +84,7 @@ window.addEventListener('keydown', (e) => {
 function tick(): void {
   input.tick();
   frameCount++;
+  if (zenFlash > 0) zenFlash--;
 
   if (mode === 'title') {
     if (title.update(input)) mode = 'play';
@@ -154,6 +170,24 @@ function render(): void {
   ctx.restore();
 
   drawHUD(ctx, world, waves, VIEW_W);
+
+  // 「禅」无敌指示：常驻小金印 + 触发时大字闪现
+  if (player.god) {
+    ctx.fillStyle = '#b03040';
+    ctx.fillRect(VIEW_W - 44, 34, 28, 28);
+    ctx.fillStyle = '#f5ead8';
+    ctx.font = 'bold 18px "Yu Mincho","MS Mincho",serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('禅', VIEW_W - 30, 55);
+  }
+  if (zenFlash > 0) {
+    ctx.globalAlpha = Math.min(1, zenFlash / 40);
+    ctx.fillStyle = '#ffd24a';
+    ctx.font = 'bold 72px "Yu Mincho","MS Mincho",serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(player.god ? '禅' : '破', VIEW_W / 2, 260);
+    ctx.globalAlpha = 1;
+  }
 
   if (DEBUG) {
     ctx.font = '11px monospace';
