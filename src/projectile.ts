@@ -70,8 +70,11 @@ export class Arrow {
 
   update(stage: { width: number; groundY: number; platforms: Rect[] }): void {
     this.x += this.vx;
-    this.vy += 0.05;
-    this.y += this.vy;
+    if (!this.pull) {
+      // 箭矢带轻微下坠；钟馗钩锁链绷直，不受重力
+      this.vy += 0.05;
+      this.y += this.vy;
+    }
     if (this.x < -20 || this.x > stage.width + 20 || this.y > stage.groundY) {
       this.dead = true;
       return;

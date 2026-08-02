@@ -126,15 +126,23 @@ export class HookSoldier {
         if (player.state !== 'dead' && adx < 400) {
           this.state = 'chase';
           this.facing = dx > 0 ? 1 : -1;
-          if (adx > HOOK_MIN && adx < HOOK_RANGE && this.atkCd <= 0) {
+          // 策略：周边有队友（长矛兵等）接应时才出钩——把你拽进包围圈
+          const allyNear = w.enemies.some(
+            (e) => e !== this && !e.dead && Math.abs(e.centerX - this.centerX) < 280,
+          );
+          if (allyNear && adx > HOOK_MIN && adx < HOOK_RANGE && this.atkCd <= 0) {
             this.state = 'windup';
             this.timer = WINDUP_TIME;
             this.vx = 0;
+          } else if (!allyNear && adx < 220) {
+            // 孤军时后撤保持距离，不白给钩子
+            const awayX = this.centerX - this.facing * 20;
+            this.vx = stage.hasGroundAt(awayX) ? -this.facing * 1.0 : 0;
           } else if (adx > HOOK_MIN) {
             const aheadX = this.centerX + this.facing * 24;
             this.vx = stage.hasGroundAt(aheadX) ? this.facing * 1.2 : 0;
           } else {
-            this.vx = 0; // 贴脸束手（钩使近战弱，近身是解法之一）
+            this.vx = 0;
           }
         } else {
           this.state = 'idle';

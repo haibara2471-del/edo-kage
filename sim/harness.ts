@@ -213,6 +213,7 @@ function hookPull(): Result {
   player.x = 400;
   player.y = stage.groundY - player.h;
   world.enemies.push(new HookSoldier(player.x + 200, stage.groundY - 34));
+  world.enemies.push(Enemy.ashigaru(player.x + 260, stage.groundY)); // 有队友接应才会出钩
   const x0 = player.centerX;
   let pulled = 0;
   for (let i = 0; i < 400; i++) {
