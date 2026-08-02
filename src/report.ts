@@ -2,6 +2,7 @@ import { SUPABASE_URL, SUPABASE_KEY } from './config';
 
 export interface RunReport {
   v: number;             // 上报格式版本
+  name: string;          // 玩家忍名（首次登记，localStorage 持久化）
   seed: number;          // 本局随机种子（回放复现用）
   result: 'clear' | 'dead';
   wave: number;          // 到达波次

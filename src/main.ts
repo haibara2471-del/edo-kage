@@ -11,6 +11,7 @@ import { clamp } from './types';
 import { reseed } from './rng';
 import { reportRun, fetchRun } from './report';
 import { ReplayInput } from './replay';
+import { getPlayerName, setPlayerName } from './identity';
 import type { World } from './world';
 
 const VIEW_W = 960;
@@ -58,6 +59,36 @@ reseed(seed);
 let reported = false;
 let deathDelay = -1;
 let debugUsed = false; // 开过「禅」/传送/清场的局不上报（作弊局无统计价值）
+
+let playerName = getPlayerName();
+let nameBuf = '';
+
+// 首次登记忍名：标题画面直接键入，Enter 确认
+window.addEventListener('keydown', (e) => {
+  if (mode !== 'title' || playerName) return;
+  if (e.key === 'Enter') {
+    if (nameBuf.trim()) {
+      playerName = nameBuf.trim().slice(0, 12);
+      setPlayerName(playerName);
+    }
+    return;
+  }
+  if (e.key === 'Backspace') {
+    nameBuf = nameBuf.slice(0, -1);
+    return;
+  }
+  if (e.key.length === 1 && nameBuf.length < 12 && !e.metaKey && !e.ctrlKey) {
+    nameBuf += e.key;
+  }
+});
+
+// 标题画面按 N 改名
+window.addEventListener('keydown', (e) => {
+  if (mode === 'title' && playerName && e.code === 'KeyN') {
+    playerName = '';
+    nameBuf = '';
+  }
+});
 
 let replayInfo: { id: number; result: string; wave: number } | null = null;
 let replayError = false;
@@ -189,7 +220,7 @@ function tick(): void {
     if (waves.done) {
       reported = true;
       void reportRun({
-        v: 1, seed, result: 'clear', wave: waves.wave, duration: frameCount,
+        v: 1, name: playerName, seed, result: 'clear', wave: waves.wave, duration: frameCount,
         hpLeft: player.hp, log: input.log, env, ua: navigator.userAgent, at: new Date().toISOString(),
       });
     } else if (player.state === 'dead') {
@@ -197,7 +228,7 @@ function tick(): void {
       else if (--deathDelay <= 0) {
         reported = true;
         void reportRun({
-          v: 1, seed, result: 'dead', wave: waves.wave, duration: frameCount,
+          v: 1, name: playerName, seed, result: 'dead', wave: waves.wave, duration: frameCount,
           hpLeft: 0, log: input.log, env, ua: navigator.userAgent, at: new Date().toISOString(),
         });
       }
@@ -222,6 +253,32 @@ function render(): void {
 
   if (mode === 'title') {
     title.draw(ctx, stage, VIEW_W, VIEW_H);
+    if (!playerName) {
+      // 首次登记忍名
+      ctx.fillStyle = 'rgba(5,7,15,0.7)';
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+      ctx.fillStyle = 'rgba(20,26,56,0.95)';
+      ctx.fillRect(VIEW_W / 2 - 180, 210, 360, 120);
+      ctx.strokeStyle = '#59627a';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(VIEW_W / 2 - 180, 210, 360, 120);
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#e8e4c8';
+      ctx.font = 'bold 20px "Yu Mincho","MS Mincho",serif';
+      ctx.fillText('报上你的忍名', VIEW_W / 2, 246);
+      ctx.fillStyle = '#ffd24a';
+      ctx.font = 'bold 22px monospace';
+      ctx.fillText(nameBuf + (frameCount % 60 < 35 ? '▌' : ''), VIEW_W / 2, 286);
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.font = '12px monospace';
+      ctx.fillText('输入名字（≤12 字符）· Enter 确认', VIEW_W / 2, 314);
+    } else {
+      // 已登记：显示忍名
+      ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(255,210,74,0.75)';
+      ctx.font = '13px monospace';
+      ctx.fillText(`忍名：${playerName} · 按 N 改名`, VIEW_W / 2, 466);
+    }
     return;
   }
 
