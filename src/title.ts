@@ -93,7 +93,7 @@ export class Title {
     if (this.t % 70 < 45) {
       ctx.fillStyle = '#ffd24a';
       ctx.font = 'bold 18px monospace';
-      ctx.fillText('— PRESS J / 按 J 出阵 —', W / 2, 380);
+      ctx.fillText('— 按 J 出阵 · 按 I 飞索修練場 —', W / 2, 380);
     }
 
     ctx.fillStyle = 'rgba(255,255,255,0.35)';

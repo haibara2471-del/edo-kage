@@ -7,12 +7,14 @@ import { Title } from './title';
 import { Codex } from './codex';
 import { resolveCombat } from './combat';
 import { drawHUD } from './ui';
-import { clamp } from './types';
+import { clamp, rectsOverlap } from './types';
 import type { World } from './world';
 
 const VIEW_W = 960;
 const VIEW_H = 540;
 const STEP = 1000 / 60; // 固定 60Hz 逻辑步进
+
+const IS_TRAINING = new URLSearchParams(location.search).has('training');
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d')!;
@@ -20,7 +22,7 @@ ctx.imageSmoothingEnabled = false;
 
 const input = new Input();
 const effects = new Effects();
-const stage = new Stage();
+const stage = new Stage(IS_TRAINING ? 'training' : 'level');
 const player = new Player();
 const waves = new Waves();
 const title = new Title();
@@ -39,8 +41,15 @@ const world: World = {
 };
 
 type Mode = 'title' | 'play' | 'codex';
-let mode: Mode = 'title';
+let mode: Mode = IS_TRAINING ? 'play' : 'title';
+let trainingDone = false;
 let frameCount = 0;
+
+if (IS_TRAINING) {
+  waves.enabled = false;
+  player.x = stage.spawnPoint.x;
+  player.y = stage.spawnPoint.y;
+}
 
 window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyR' && mode === 'play') location.reload();
@@ -51,6 +60,10 @@ function tick(): void {
   frameCount++;
 
   if (mode === 'title') {
+    if (input.consume('grapple')) {
+      location.search = '?training=1'; // 标题画面按 I 进修練場
+      return;
+    }
     if (title.update(input)) mode = 'play';
     return;
   }
@@ -90,8 +103,13 @@ function tick(): void {
   world.arrows = world.arrows.filter((a) => !a.dead);
 
   resolveCombat(world);
-  waves.update(world);
+  if (waves.enabled) waves.update(world);
   effects.update();
+
+  // 修練場：到达终点高台
+  if (IS_TRAINING && !trainingDone && rectsOverlap(player.rect, stage.goalZone)) {
+    trainingDone = true;
+  }
 
   // 相机平滑跟随
   const target = clamp(player.centerX - VIEW_W / 2, 0, stage.width - VIEW_W);
@@ -126,6 +144,16 @@ function render(): void {
   ctx.restore();
 
   drawHUD(ctx, world, waves, VIEW_W);
+
+  if (IS_TRAINING && trainingDone) {
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 36px "Yu Mincho","MS Mincho",serif';
+    ctx.fillStyle = '#ffd24a';
+    ctx.fillText('修練完了！', VIEW_W / 2, 180);
+    ctx.font = '14px monospace';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText('按 R 返回标题', VIEW_W / 2, 212);
+  }
 
   if (mode === 'codex') codex.draw(ctx, VIEW_W, VIEW_H, frameCount);
 }

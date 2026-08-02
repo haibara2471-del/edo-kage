@@ -34,12 +34,16 @@ export class Waves {
   private timer = 60;
   private guarded = 0;
 
+  /** 修練場置 false：不刷怪、不报波次 */
+  enabled = true;
+
   /** 结界位置（封锁右路），null 表示开放 */
   barrierX: number | null = null;
   announceTimer = 0;
   done = false;
 
   update(w: World): void {
+    if (!this.enabled) return;
     if (this.announceTimer > 0) this.announceTimer--;
     const zones = w.stage.grounds;
 
@@ -138,6 +142,7 @@ export class Waves {
   }
 
   get label(): string {
+    if (!this.enabled) return '飛索修練場';
     switch (this.phase) {
       case 'start': return '敵襲……';
       case 'fight': return `第 ${this.wave} / ${this.total} 波`;

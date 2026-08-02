@@ -39,7 +39,7 @@ const KI_PER_HIT = 8;
 const ROPE_SPEED = 14;    // 绳头飞行速度
 const ROPE_MAX = 340;     // 绳索最大长度
 const REHOOK_CD = 10;     // 松钩后到再次抛索的间隔（按住 I 时自动接力）
-const SWING_PUMP = 0.22;  // 手动摆荡助力（A/D）
+const SWING_PUMP = 0.35;  // 手动摆荡助力（A/D，修練场要求明确的方向操控感）
 const SWING_AUTO = 0.2;   // 共振泵摆（沿切向运动方向加速，振幅自然增长）
 const SWING_KICK = 2.5;   // 钩住瞬间朝目标侧的初速度
 const SWING_MAX = 12;
@@ -143,9 +143,18 @@ export class Player {
     this.attackId++;
   }
 
-  /** 坠入天堑 = 任务失败 */
+  /** 坠入天堑 = 任务失败（修練場则回起点） */
   private checkPit(w: World): boolean {
     if (this.y > w.stage.groundY + 100) {
+      if (w.stage.isTraining) {
+        this.x = w.stage.spawnPoint.x;
+        this.y = w.stage.spawnPoint.y;
+        this.vx = 0;
+        this.vy = 0;
+        this.rope = null;
+        this.state = 'air';
+        return false;
+      }
       this.hp = 0;
       this.rope = null;
       this.state = 'dead';

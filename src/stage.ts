@@ -13,7 +13,7 @@ export interface Anchor { x: number; y: number; }
  * 松树石灯笼 / 苔庭假山 / 深沟+吊索横梁（忍者突袭式摆荡路段）
  */
 export class Stage {
-  readonly width = 2750;
+  readonly width: number = 2750;
   readonly groundY = 480;
 
   /** 地面分段——间隙即天堑，坠落即任务失败（三段战区被两条深沟隔开） */
@@ -52,6 +52,11 @@ export class Stage {
   /** 绳索可钩的实体（点判定，含横梁、平台、櫓柱） */
   readonly ropeTargets: Rect[] = [];
 
+  readonly isTraining: boolean;
+  readonly spawnPoint = { x: 60, y: 400 };
+  goalZone: Rect = { x: -9999, y: 0, w: 1, h: 1 };
+  hints: { x: number; y: number; text: string }[] = [];
+
   private stars: Star[] = [];
   private clouds: Cloud[] = [];
   private grass: GrassTuft[] = [];
@@ -59,7 +64,39 @@ export class Stage {
   private pines: { x: number; s: number }[] = [];
   private lanterns: { x: number }[] = [];
 
-  constructor() {
+  constructor(mode: 'level' | 'training' = 'level') {
+    this.isTraining = mode === 'training';
+    if (this.isTraining) {
+      // —— 飞索修練場：单屏，无地面可走，只能靠绳索移动 ——
+      this.width = 960;
+      this.grounds = [
+        { x0: 0, x1: 120 },     // 起点台
+        { x0: 430, x1: 560 },   // 矮台（下落练习目标）
+      ];
+      this.beams = [
+        // 下排：左右移动练习
+        { x: 165, y: 265, w: 90, h: 10 },
+        { x: 295, y: 265, w: 90, h: 10 },
+        { x: 425, y: 265, w: 90, h: 10 },
+        { x: 555, y: 265, w: 90, h: 10 },
+        { x: 685, y: 265, w: 90, h: 10 },
+        // 上排：升高练习
+        { x: 235, y: 155, w: 90, h: 10 },
+        { x: 435, y: 155, w: 90, h: 10 },
+        { x: 635, y: 155, w: 90, h: 10 },
+      ];
+      this.signs = [];
+      this.platforms = [{ x: 840, y: 250, w: 100, h: 16 }]; // 终点高台
+      this.towers = [];
+      this.goalZone = { x: 845, y: 190, w: 90, h: 70 };
+      this.hints = [
+        { x: 60, y: 420, text: '起点' },
+        { x: 240, y: 245, text: '按住 I 钩梁 · A/D 左右荡' },
+        { x: 480, y: 135, text: '上行：钩更高的梁，越荡越高' },
+        { x: 495, y: 462, text: '下行：松开 I 落到矮台' },
+        { x: 890, y: 180, text: '终点' },
+      ];
+    }
     for (let i = 0; i < 70; i++) {
       this.stars.push({ x: Math.random() * this.width, y: Math.random() * 200, r: Math.random() < 0.2 ? 2 : 1 });
     }
@@ -425,6 +462,15 @@ export class Stage {
       ctx.fillStyle = '#4a4a5a';
       ctx.fillRect(b.x + 6, b.y - 2, 8, 4);
       ctx.fillRect(b.x + b.w - 14, b.y - 2, 8, 4);
+    }
+
+    // 修練場：提示文字 + 终点鸟居
+    if (this.isTraining) {
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      ctx.font = '12px monospace';
+      ctx.textAlign = 'center';
+      for (const h of this.hints) ctx.fillText(h.text, h.x, h.y);
+      this.drawTorii(ctx, 890, 250, 0.8, '#b03040');
     }
 
     // 假山平台
