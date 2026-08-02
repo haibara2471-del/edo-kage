@@ -8,6 +8,8 @@ import { Codex } from './codex';
 import { resolveCombat } from './combat';
 import { drawHUD, drawBossBar } from './ui';
 import { clamp } from './types';
+import { reseed } from './rng';
+import { reportRun } from './report';
 import type { World } from './world';
 
 const VIEW_W = 960;
@@ -46,6 +48,13 @@ type Mode = 'title' | 'play' | 'codex';
 let mode: Mode = 'title';
 let frameCount = 0;
 let zenFlash = 0; // 「禅」密令触发提示
+
+/** 本局随机种子（记录在案，回放可用同种子复现） */
+const seed = (Math.random() * 0xffffffff) >>> 0;
+reseed(seed);
+
+let reported = false;
+let deathDelay = -1;
 
 const zenBuf: { code: string; time: number }[] = [];
 
@@ -147,6 +156,26 @@ function tick(): void {
   resolveCombat(world);
   waves.update(world);
   effects.update();
+
+  // 每局结束时上报一次（通关 / 死亡 1.5 秒后）
+  if (!reported) {
+    if (waves.done) {
+      reported = true;
+      void reportRun({
+        v: 1, seed, result: 'clear', wave: waves.wave, duration: frameCount,
+        hpLeft: player.hp, log: input.log, ua: navigator.userAgent, at: new Date().toISOString(),
+      });
+    } else if (player.state === 'dead') {
+      if (deathDelay < 0) deathDelay = 90;
+      else if (--deathDelay <= 0) {
+        reported = true;
+        void reportRun({
+          v: 1, seed, result: 'dead', wave: waves.wave, duration: frameCount,
+          hpLeft: 0, log: input.log, ua: navigator.userAgent, at: new Date().toISOString(),
+        });
+      }
+    }
+  }
 
   // 相机平滑跟随
   const target = clamp(player.centerX - VIEW_W / 2, 0, stage.width - VIEW_W);

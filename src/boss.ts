@@ -1,6 +1,7 @@
 import type { Rect } from './types';
 import { clamp } from './types';
 import { integrate } from './physics';
+import { rand } from './rng';
 import { drawBoss } from './characters';
 import type { World } from './world';
 
@@ -78,7 +79,7 @@ export class Boss {
     this.lastHitT = this.t;
 
     const dodgeChance = this.phase2 ? 0.4 : 0.25;
-    if (this.hitChain >= 3 || Math.random() < dodgeChance) {
+    if (this.hitChain >= 3 || rand() < dodgeChance) {
       this.hitChain = 0;
       this.dodgeCd = 25;
       this.x = clamp(this.x - dirX * 70, 0, 2750 - this.w);
@@ -250,7 +251,7 @@ export class Boss {
             return;
           }
           if (adx < 52) {
-            if (this.phase2 && Math.random() < 0.35) {
+            if (this.phase2 && rand() < 0.35) {
               this.state = 'sweepWindup';
               this.timer = 16;
             } else {
@@ -261,7 +262,7 @@ export class Boss {
             this.vx = 0;
             return;
           }
-          if (adx < 300 && Math.random() < 0.55) {
+          if (adx < 300 && rand() < 0.55) {
             this.state = 'dashWindup';
             this.timer = 20;
             this.vx = 0;

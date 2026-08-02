@@ -1,6 +1,7 @@
 import type { Rect } from './types';
 import { clamp } from './types';
 import { drawFlyer, type FlyerKind } from './characters';
+import { rand } from './rng';
 import type { World } from './world';
 
 type State = 'circle' | 'telegraph' | 'dive' | 'climb' | 'hit' | 'dead';
@@ -48,8 +49,8 @@ export class Flyer {
     this.speed = s.speed;
     this.w = s.w;
     this.h = s.h;
-    this.wobble = Math.random() * Math.PI * 2;
-    this.t = Math.floor(Math.random() * 60);
+    this.wobble = rand() * Math.PI * 2;
+    this.t = Math.floor(rand() * 60);
   }
 
   get codexId(): FlyerKind {
@@ -169,7 +170,7 @@ export class Flyer {
         if (Math.abs(this.vx) > 0.3) this.facing = Math.sign(this.vx);
         if (this.y <= player.y - this.altitude * 0.8) {
           this.state = 'circle';
-          this.timer = 90 + Math.random() * 90;
+          this.timer = 90 + rand() * 90;
         }
         break;
     }

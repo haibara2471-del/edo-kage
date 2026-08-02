@@ -18,16 +18,17 @@ import { Codex } from '../src/codex';
 import { resolveCombat } from '../src/combat';
 import type { World } from '../src/world';
 
-/** 假输入：与 Input 同接口，脚本驱动 */
+/** 假输入：与 Input 同接口（帧钟版），脚本驱动 */
 class FakeInput {
   private heldSet = new Set<string>();
-  private buf: { action: string; time: number }[] = [];
+  private buf: { action: string; frame: number }[] = [];
+  private frame = 0;
   hold(a: string): void {
-    if (!this.heldSet.has(a)) this.buf.push({ action: a, time: performance.now() });
+    if (!this.heldSet.has(a)) this.buf.push({ action: a, frame: this.frame });
     this.heldSet.add(a);
   }
   tap(a: string): void {
-    this.buf.push({ action: a, time: performance.now() });
+    this.buf.push({ action: a, frame: this.frame });
   }
   release(a: string): void {
     this.heldSet.delete(a);
@@ -36,15 +37,16 @@ class FakeInput {
     return this.heldSet.has(a);
   }
   consume(a: string): boolean {
-    const now = performance.now();
-    const i = this.buf.findIndex((p) => p.action === a && now - p.time <= 150);
+    const i = this.buf.findIndex((p) => p.action === a && this.frame - p.frame <= 9);
     if (i >= 0) {
       this.buf.splice(i, 1);
       return true;
     }
     return false;
   }
-  tick(): void { /* 不过期缓冲：仿真瞬时推进 */ }
+  tick(): void {
+    this.frame++;
+  }
 }
 
 function makeWorld(mode: 'level' | 'training' = 'level') {
@@ -69,6 +71,7 @@ function makeWorld(mode: 'level' | 'training' = 'level') {
 
 /** 与 main.ts tick 等价的逻辑步进（不含渲染/相机/波次） */
 function step(w: World): void {
+  w.input.tick();
   if (w.effects.freeze > 0) {
     w.effects.freeze--;
     w.effects.update();
@@ -273,8 +276,9 @@ function bossFight(): Result {
   for (let i = 0; i < 400; i++) step(world);
   const bossHitsPlayer = player.hp < 100;
 
-  // 第二段：近身连打 400 ticks，Boss 应掉血（可能触发残像/二阶段）
+  // 第二段：近身连打 400 ticks（每轮面向 Boss 再出手，防止绕后空挥），Boss 应掉血
   for (let i = 0; i < 400; i++) {
+    player.facing = boss.centerX >= player.centerX ? 1 : -1;
     if (i % 22 === 0) input.tap('attack');
     step(world);
   }
