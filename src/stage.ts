@@ -72,6 +72,7 @@ export class Stage {
       this.grounds = [
         { x0: 0, x1: 120 },     // 起点台
         { x0: 430, x1: 560 },   // 矮台（下落练习目标）
+        { x0: 840, x1: 960 },   // 终点台（鸟居）
       ];
       this.beams = [
         // 下排：左右移动练习
@@ -86,15 +87,15 @@ export class Stage {
         { x: 635, y: 155, w: 90, h: 10 },
       ];
       this.signs = [];
-      this.platforms = [{ x: 840, y: 250, w: 100, h: 16 }]; // 终点高台
+      this.platforms = [];
       this.towers = [];
-      this.goalZone = { x: 845, y: 190, w: 90, h: 70 };
+      this.goalZone = { x: 845, y: 420, w: 90, h: 60 };
       this.hints = [
         { x: 60, y: 420, text: '起点' },
         { x: 240, y: 245, text: '按住 I 钩梁 · A/D 左右荡' },
         { x: 480, y: 135, text: '上行：钩更高的梁，越荡越高' },
         { x: 495, y: 462, text: '下行：松开 I 落到矮台' },
-        { x: 890, y: 180, text: '终点' },
+        { x: 890, y: 420, text: '终点' },
       ];
     }
     for (let i = 0; i < 70; i++) {
@@ -470,7 +471,7 @@ export class Stage {
       ctx.font = '12px monospace';
       ctx.textAlign = 'center';
       for (const h of this.hints) ctx.fillText(h.text, h.x, h.y);
-      this.drawTorii(ctx, 890, 250, 0.8, '#b03040');
+      this.drawTorii(ctx, 890, this.groundY, 0.8, '#b03040');
     }
 
     // 假山平台

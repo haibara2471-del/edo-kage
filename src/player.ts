@@ -49,7 +49,7 @@ const SWING_PUMP = 0.3;   // 手动摆荡助力（A/D，自己掌握节奏）
 const SWING_AUTO = 0.1;   // 共振泵摆（轻微保活，振幅缓慢增长，不催命）
 const SWING_KICK = 1.5;   // 钩住瞬间朝目标侧的初速度
 const SWING_MAX = 7;      // 摆速上限（慢而稳，留思考时间）
-const RELEASE_MIN_V = 3.5; // 自动松手的最小甩出速度（小振幅不甩人）
+const RELEASE_MIN_V = 2.5; // 自动松手的最小甩出速度（低门槛快释放，速度由软着陆压住）
 
 type State = 'idle' | 'run' | 'air' | 'attack' | 'launcher' | 'flurry' | 'dash' | 'grapple' | 'hit' | 'dead';
 
@@ -62,7 +62,10 @@ interface Rope {
   len: number;              // 绳长
   dir: number;              // 抛索时的行进方向（±1），摆荡只朝这个方向送
   side: number;             // = -dir，松手判定用目标侧
+  attachT: number;          // 钩住时长（帧），防止秒钩秒放
 }
+
+const ATTACH_DAMP = 3;      // 钩住瞬间切向速度软着陆上限
 
 export class Player {
   x = 120;
@@ -237,7 +240,20 @@ export class Player {
       r.len = Math.max(46, Math.min(rawLen, stage.groundY - 28 - r.ay));
       // 目标侧永远锁定行进方向（即使高速飞过了锚点，也只会向前甩，不会回程）
       r.side = -r.dir;
-      this.vx += r.dir * SWING_KICK;
+      r.attachT = 0;
+      // 切向速度软着陆：钩住瞬间把摆速压到上限，每荡都从容开始
+      const nx = (this.centerX - r.ax) / (rawLen || 1);
+      const ny = (this.y + 10 - r.ay) / (rawLen || 1);
+      const vr = this.vx * nx + this.vy * ny;
+      let tvx = this.vx - vr * nx;
+      let tvy = this.vy - vr * ny;
+      const ts = Math.hypot(tvx, tvy);
+      if (ts > ATTACH_DAMP) {
+        tvx = (tvx / ts) * ATTACH_DAMP;
+        tvy = (tvy / ts) * ATTACH_DAMP;
+      }
+      this.vx = vr * nx + tvx + r.dir * SWING_KICK;
+      this.vy = vr * ny + tvy;
       this.state = 'grapple';
       w.effects.puff(attach.x, attach.y);
     } else if (r.traveled > ROPE_MAX || r.hy < 8 || r.hx < 0 || r.hx > stage.width) {
@@ -269,6 +285,7 @@ export class Player {
       return;
     }
     const { stage, input } = w;
+    r.attachT++;
 
     // 松开 I = 放手；按跳 = 助力飞出
     if (!input.isHeld('grapple')) { this.detach(w, false); return; }
@@ -310,8 +327,8 @@ export class Player {
       this.vy -= vr * ny;
     }
 
-    // 自动松手：荡过支点另一侧、升至接近最高点、且甩出速度足够时才飞出
-    // （小振幅不打扰——让你安心荡；W 可随时主动松手）
+    // 自动松手：荡过支点另一侧、升至接近最高点、且甩出速度足够时就飞出
+    // （第一次过底点是最好的窗口；W 可随时主动松手）
     const sideNow = Math.sign(this.centerX - r.ax) || r.side;
     if (sideNow !== r.side && this.vy > -1 && this.vx * -r.side > RELEASE_MIN_V) {
       this.vx *= 1.05;
@@ -456,7 +473,7 @@ export class Player {
         hy: this.y + 10,
         dx, dy,
         traveled: 0,
-        ax: 0, ay: 0, len: 0, dir, side: -dir,
+        ax: 0, ay: 0, len: 0, dir, side: -dir, attachT: 0,
       };
       effects.puff(this.centerX, this.centerY);
     }

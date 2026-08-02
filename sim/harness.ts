@@ -304,11 +304,55 @@ function crowDive(): Result {
   };
 }
 
+// ———————————————— 场景：修練場全程（下排梁→终点台） ————————————————
+
+function trainingTraverse(): Result {
+  const { world, input, player, stage } = makeWorld('training');
+  player.x = 60;
+  player.y = stage.groundY - player.h;
+  for (let i = 0; i < 3; i++) step(world);
+  input.hold('grapple');
+  input.hold('right');
+
+  const releases: number[] = [];
+  const trace: string[] = [];
+  let hadRope = false;
+  let ticks = 0;
+  let reached = false;
+  for (let i = 0; i < 900; i++) {
+    ticks = i;
+    step(world);
+    if (player.rope && !hadRope && player.rope.phase === 'attach') {
+      trace.push(`t${i}钩(${player.rope.ax.toFixed(0)},len${player.rope.len.toFixed(0)})`);
+    }
+    if (!player.rope && hadRope) {
+      releases.push(player.vx);
+      trace.push(`t${i}松(x=${player.centerX.toFixed(0)},vx=${player.vx.toFixed(1)})`);
+    }
+    hadRope = !!player.rope;
+    if (player.onGround && player.centerX > 830) {
+      reached = true;
+      break;
+    }
+  }
+  input.release('grapple');
+  input.release('right');
+  const maxV = releases.length ? Math.max(...releases.map(Math.abs)) : 0;
+  const passes = world.player.x; // 占位避免 lint
+  void passes;
+  return {
+    name: '修練場：下排梁横移到终点台',
+    pass: reached && maxV <= 8,
+    detail: `x=${player.centerX.toFixed(0)}(目标>830) 用时${ticks}t 峰值=${maxV.toFixed(1)} 轨迹=${trace.slice(0, 12).join(' ')}`,
+  };
+}
+
 // ———————————————— 运行 ————————————————
 
 const results: Result[] = [
   ropeGap(1),
   ropeGap(2),
+  trainingTraverse(),
   bladeKill(),
   spearHit(),
   launcherJuggle(),
