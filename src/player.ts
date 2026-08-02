@@ -40,7 +40,8 @@ const ROPE_SPEED = 14;    // 绳头飞行速度
 const ROPE_MAX = 340;     // 绳索最大长度
 const REHOOK_CD = 10;     // 松钩后到再次抛索的间隔（按住 I 时自动接力）
 const SWING_PUMP = 0.22;  // 手动摆荡助力（A/D）
-const SWING_AUTO = 0.14;  // 自动泵摆（朝目标侧持续加力，振幅越荡越大→荡高甩出）
+const SWING_AUTO = 0.2;   // 共振泵摆（沿切向运动方向加速，振幅自然增长）
+const SWING_KICK = 2.5;   // 钩住瞬间朝目标侧的初速度
 const SWING_MAX = 12;
 
 type State = 'idle' | 'run' | 'air' | 'attack' | 'dash' | 'grapple' | 'hit' | 'dead';
@@ -81,6 +82,8 @@ export class Player {
 
   rope: Rope | null = null;
   grappleCd = 0;
+  private lastHook: { x: number; y: number } | null = null; // 刚松开的锚点（接力时跳过，防止钩回同一根）
+  private lastHookUntil = 0;
 
   hitTimer = 0;
   invTimer = 0;      // 受击后/瞬身中的无敌帧
@@ -187,6 +190,8 @@ export class Player {
       r.ay = attach.y;
       r.len = Math.max(46, Math.hypot(this.centerX - r.ax, this.y + 10 - r.ay));
       r.side = Math.sign(this.centerX - r.ax) || -1;
+      this.vx += -r.side * SWING_KICK; // 钩住瞬间朝目标侧甩出
+      this.facing = -r.side;           // 摆荡期间朝向锁定目标侧（不随速度翻转）
       this.state = 'grapple';
       w.effects.puff(attach.x, attach.y);
     } else if (r.traveled > ROPE_MAX || r.hy < 8 || r.hx < 0 || r.hx > stage.width) {
@@ -197,6 +202,10 @@ export class Player {
 
   /** 松钩：跳跃键给小跳助力，松开 I 直接自由落体 */
   private detach(w: World, boost: boolean): void {
+    if (this.rope && this.rope.phase === 'attach') {
+      this.lastHook = { x: this.rope.ax, y: this.rope.ay };
+      this.lastHookUntil = this.t + 40;
+    }
     this.state = 'air';
     this.rope = null;
     this.grappleCd = REHOOK_CD;
@@ -218,10 +227,20 @@ export class Player {
     if (!input.isHeld('grapple')) { this.detach(w, false); return; }
     if (input.consume('jump')) { this.detach(w, true); return; }
 
-    // 摆动物理：自动朝目标侧泵摆 + A/D 手动加力
+    // 共振泵摆：沿当前切向运动方向加速（荡秋千式发力，振幅自然增长）
     this.vy += GRAVITY;
+    const rdx = this.centerX - r.ax;
+    const rdy = this.y + 10 - r.ay;
+    const rdist = Math.hypot(rdx, rdy) || 1;
+    const tx = -rdy / rdist;
+    const ty = rdx / rdist;
+    const vt = this.vx * tx + this.vy * ty;
+    if (Math.abs(vt) > 0.05) {
+      this.vx += tx * Math.sign(vt) * SWING_AUTO;
+      this.vy += ty * Math.sign(vt) * SWING_AUTO;
+    }
     const move = (input.isHeld('left') ? -1 : 0) + (input.isHeld('right') ? 1 : 0);
-    this.vx += -r.side * SWING_AUTO + move * SWING_PUMP;
+    this.vx += move * SWING_PUMP;
     const sp = Math.hypot(this.vx, this.vy);
     if (sp > SWING_MAX) {
       this.vx = (this.vx / sp) * SWING_MAX;
@@ -244,10 +263,10 @@ export class Player {
       this.vy -= vr * ny;
     }
 
-    // 自动松手：荡过支点到另一侧、升至接近最高点时自动飞出（手动 W/I 仍可提前松）
+    // 自动松手：荡过支点到另一侧、升至接近最高点时自动飞出（手动 W 仍可提前松）
     const sideNow = Math.sign(this.centerX - r.ax) || r.side;
     if (sideNow !== r.side && this.vy > -1) {
-      this.vx *= 1.25;
+      this.vx *= 1.1;
       this.detach(w, true);
       return;
     }
@@ -281,7 +300,6 @@ export class Player {
     }
 
     this.x = clamp(this.x, 0, stage.width - this.w);
-    if (Math.abs(this.vx) > 0.5) this.facing = Math.sign(this.vx);
     this.checkPit(w);
   }
 
@@ -338,6 +356,14 @@ export class Player {
       let dy = -0.7071;
       let bestD = ROPE_MAX;
       for (const a of stage.anchors) {
+        // 跳过刚松开的锚点（40 帧内），接力时锁定下一根
+        if (
+          this.lastHook &&
+          this.t < this.lastHookUntil &&
+          Math.hypot(a.x - this.lastHook.x, a.y - this.lastHook.y) < 30
+        ) {
+          continue;
+        }
         const ddx = a.x - this.centerX;
         const ddy = a.y - (this.y + 10);
         if (ddy > -16) continue;                                    // 必须在上方
