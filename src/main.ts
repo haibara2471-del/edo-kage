@@ -64,13 +64,23 @@ window.addEventListener('keydown', (e) => {
     }
   }
   if (!DEBUG || mode !== 'play') return;
-  // —— 开发者调试（?debug=1）——
-  const zones = stage.grounds;
+  // —— 开发者调试（?debug=1 显示 DEBUG 标记与 G 无敌）——
+  if (e.code === 'KeyG') player.god = !player.god;   // 无敌开关（Z-E-N 也可）
+});
+
+/** 传送/清场调试键：随时可用（数字键与 N 均未被游戏占用） */
+window.addEventListener('keydown', (e) => {
+  if (mode !== 'play') return;
+  const ZONES = [
+    { x0: 0, x1: 1050 },
+    { x0: 1350, x1: 1950 },
+    { x0: 2310, x1: 2750 },
+  ];
   if (e.code === 'Digit1' || e.code === 'Digit2' || e.code === 'Digit3') {
     const zi = Number(e.code.slice(-1)) - 1;
-    if (zones[zi]) {
+    if (ZONES[zi]) {
       world.enemies.length = 0; // 传送并清场
-      player.x = zones[zi].x0 + 60;
+      player.x = ZONES[zi].x0 + 60;
       player.y = 300;
       player.vx = 0;
       player.vy = 0;
@@ -78,7 +88,6 @@ window.addEventListener('keydown', (e) => {
     }
   }
   if (e.code === 'KeyN') world.enemies.length = 0; // 秒清当前波（测结界开门）
-  if (e.code === 'KeyG') player.god = !player.god;   // 无敌开关
 });
 
 function tick(): void {
