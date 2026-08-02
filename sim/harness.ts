@@ -13,6 +13,8 @@ import { HookSoldier } from '../src/hooksoldier';
 import { Bruiser } from '../src/bruiser';
 import { Shaman } from '../src/shaman';
 import { Boss } from '../src/boss';
+import { reseed } from '../src/rng';
+import { ReplayInput } from '../src/replay';
 import { Effects } from '../src/effects';
 import { Codex } from '../src/codex';
 import { resolveCombat } from '../src/combat';
@@ -23,15 +25,20 @@ class FakeInput {
   private heldSet = new Set<string>();
   private buf: { action: string; frame: number }[] = [];
   private frame = 0;
+  readonly log: { f: number; a: string; d: number }[] = [];
   hold(a: string): void {
     if (!this.heldSet.has(a)) this.buf.push({ action: a, frame: this.frame });
     this.heldSet.add(a);
+    this.log.push({ f: this.frame, a, d: 1 });
   }
   tap(a: string): void {
     this.buf.push({ action: a, frame: this.frame });
+    this.log.push({ f: this.frame, a, d: 1 });
+    this.log.push({ f: this.frame, a, d: 0 });
   }
   release(a: string): void {
     this.heldSet.delete(a);
+    this.log.push({ f: this.frame, a, d: 0 });
   }
   isHeld(a: string): boolean {
     return this.heldSet.has(a);
@@ -290,6 +297,53 @@ function bossFight(): Result {
   };
 }
 
+function replayDeterminism(): Result {
+  const actions: [number, 'hold' | 'tap' | 'release', string][] = [
+    [5, 'hold', 'right'], [40, 'tap', 'attack'], [58, 'tap', 'attack'], [76, 'tap', 'attack'],
+    [95, 'release', 'right'], [100, 'tap', 'jump'], [112, 'tap', 'skillU'], [124, 'tap', 'skillH'],
+    [150, 'tap', 'shuriken'], [170, 'hold', 'left'], [190, 'release', 'left'], [210, 'tap', 'skillO'],
+  ];
+
+  const setup = (): ReturnType<typeof makeWorld> => {
+    reseed(42); // 同种子
+    const ctx = makeWorld();
+    ctx.player.x = 400;
+    ctx.player.y = ctx.stage.groundY - ctx.player.h;
+    ctx.world.enemies.push(Enemy.ashigaru(ctx.player.x + 50, ctx.stage.groundY));
+    ctx.world.enemies.push(new Flyer(ctx.player.x + 200, ctx.stage.groundY - 220, 'crow'));
+    return ctx;
+  };
+
+  // 第一遍：脚本实录
+  const p1 = setup();
+  for (let i = 0; i < 260; i++) {
+    for (const [t, how, a] of actions) {
+      if (t !== i) continue;
+      if (how === 'tap') p1.input.tap(a);
+      else if (how === 'hold') p1.input.hold(a);
+      else p1.input.release(a);
+    }
+    step(p1.world);
+  }
+
+  // 第二遍：同种子 + 回放输入日志
+  const p2 = setup();
+  p2.world.input = new ReplayInput(p1.input.log) as never;
+  for (let i = 0; i < 260; i++) step(p2.world);
+
+  const hp1 = p1.world.enemies.map((e) => e.hp).join(',');
+  const hp2 = p2.world.enemies.map((e) => e.hp).join(',');
+  const same =
+    p1.player.hp === p2.player.hp &&
+    Math.abs(p1.player.x - p2.player.x) < 0.01 &&
+    hp1 === hp2;
+  return {
+    name: '回放确定性：同种子+日志重放结果一致',
+    pass: same,
+    detail: `玩家HP ${p1.player.hp}vs${p2.player.hp} 敌HP[${hp1}]vs[${hp2}] 位置差=${Math.abs(p1.player.x - p2.player.x).toFixed(2)}`,
+  };
+}
+
 // ———————————————— 运行 ————————————————
 
 const results: Result[] = [
@@ -303,6 +357,7 @@ const results: Result[] = [
   shamanPoison(),
   crowDive(),
   bossFight(),
+  replayDeterminism(),
 ];
 
 let failed = 0;

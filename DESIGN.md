@@ -217,6 +217,11 @@
   - Supabase `runs` 表接入完成（端到端验证 201）：每局战报（结果/波次/用时/种子/输入日志）自动入库
   - **防废数据**：开「禅」/传送/清场的作弊局**不上报**；战报打 `env`（local/prod）标签便于过滤
   - **push 网络修复**：github.com 主站被限流（22s+丢包）而 api.github.com 正常——repo 级 `http.proxy=127.0.0.1:7890`（Clash）解决；备选方案 SSH over 443（公钥已生成备用）
+- **v0.24（回放播放器）**：
+  - `?replay=<id>` 或 `?replay=latest`：从 Supabase 拉取战报，**同种子 + ReplayInput 逐帧喂回输入日志** = 完整重放（从标题画面开始，含 hit-stop）；顶部金色横幅显示回放来源；回放局不再上报
+  - 读取需 `runs` 表 select 权限（`create policy "public read" on runs for select using (true);`）
+  - **确定性经测试台验证**：同一局实时脚本 vs 日志回放，260 帧后玩家 HP/敌人 HP/位置完全一致（测试台 11/11）
+  - 数据收集为**全自动**：每局结束自动上报，无需任何手动操作；作弊局（禅/传送）除外
 
 ## 10. TODO / backlog
 

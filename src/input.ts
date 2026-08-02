@@ -16,14 +16,15 @@ const KEYMAP: Record<string, Action> = {
 const BUFFER_TICKS = 9; // 输入缓冲窗口：9 帧（=150ms@60Hz），用逻辑帧计时保证回放可复现
 
 export class Input {
-  private held = new Set<Action>();
-  private buffer: { action: Action; frame: number }[] = [];
-  private frame = 0;
+  protected held = new Set<Action>();
+  protected buffer: { action: Action; frame: number }[] = [];
+  protected frame = 0;
 
   /** 输入日志：[帧, 动作, 按下1/松开0]，每局的回放原料 */
   readonly log: { f: number; a: string; d: number }[] = [];
 
-  constructor() {
+  constructor(listen = true) {
+    if (!listen) return; // 回放模式：不接真实键盘
     window.addEventListener('keydown', (e) => {
       const a = KEYMAP[e.code];
       if (!a) return;

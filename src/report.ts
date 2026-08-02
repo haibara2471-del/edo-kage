@@ -29,3 +29,23 @@ export async function reportRun(data: RunReport): Promise<void> {
     });
   } catch { /* 网络失败静默 */ }
 }
+
+export interface RunRecord extends RunReport {
+  id: number;
+  created_at: string;
+}
+
+/** 拉取一条战报（回放用）：?replay=<id> 或 ?replay=latest */
+export async function fetchRun(id: string): Promise<RunRecord | null> {
+  if (!SUPABASE_URL || !SUPABASE_KEY) return null;
+  try {
+    const q = id === 'latest' ? 'select=*&order=id.desc&limit=1' : `select=*&id=eq.${id}`;
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/runs?${q}`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+    });
+    const rows = (await res.json()) as RunRecord[];
+    return rows[0] ?? null;
+  } catch {
+    return null;
+  }
+}
