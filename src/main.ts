@@ -68,9 +68,9 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyG') player.god = !player.god;   // 无敌开关（Z-E-N 也可）
 });
 
-/** 传送/清场调试键：随时可用（数字键与 N 均未被游戏占用） */
+/** 传送/清场调试键：仅「禅」模式（Z-E-N 开启无敌）下生效，玩家无法使用 */
 window.addEventListener('keydown', (e) => {
-  if (mode !== 'play') return;
+  if (mode !== 'play' || !player.god) return;
   const ZONES = [
     { x0: 0, x1: 1050 },
     { x0: 1350, x1: 1950 },
@@ -210,7 +210,7 @@ function render(): void {
     ctx.font = '11px monospace';
     ctx.fillStyle = '#ffd24a';
     ctx.textAlign = 'right';
-    ctx.fillText(`DEBUG${player.god ? ' · GOD' : ''}  [1/2/3 传送  N 清波  G 无敌]`, VIEW_W - 16, 20);
+    ctx.fillText(`DEBUG${player.god ? ' · GOD' : ''}`, VIEW_W - 16, 20);
   }
 
   if (mode === 'codex') codex.draw(ctx, VIEW_W, VIEW_H, frameCount);
