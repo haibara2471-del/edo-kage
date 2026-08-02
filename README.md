@@ -1,5 +1,7 @@
 # 江戸影（EDO NO KAGE）
 
+**在线试玩：https://haibara2471-del.github.io/edo-kage/**
+
 江户时代题材的 2D 横版动作游戏：忍者 + 短刀三段连 + 手里剑 + 蜘蛛侠式飞索摆荡。
 纯 Canvas + TypeScript，零游戏引擎，零美术素材（全部程序化绘制）。
 
