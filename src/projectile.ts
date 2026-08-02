@@ -49,6 +49,8 @@ export class Arrow {
   readonly h = 3;
   readonly dmg: number;
   readonly pull: boolean;
+  private readonly ox: number; // 发射点（钩索的锁链从这里连出）
+  private readonly oy: number;
 
   constructor(
     public x: number,
@@ -58,6 +60,8 @@ export class Arrow {
   ) {
     this.dmg = opts.dmg ?? 8;
     this.pull = opts.pull ?? false;
+    this.ox = x;
+    this.oy = y;
   }
 
   get rect(): Rect {
@@ -82,22 +86,33 @@ export class Arrow {
 
   draw(ctx: CanvasRenderingContext2D): void {
     const dir = Math.sign(this.vx);
-    const tx = this.x - dir * 7; // 箭尾
-    const ty = this.y - this.vy * 4;
     if (this.pull) {
-      // 钩索：铁钩 + 锁链
-      ctx.strokeStyle = '#8a94a8';
+      // 钩索：从发射点连出的锁链（链环）+ 三爪钩
+      const dx = this.x - this.ox;
+      const dy = this.y - this.oy;
+      const dist = Math.hypot(dx, dy) || 1;
+      const links = Math.min(12, Math.floor(dist / 12));
+      ctx.fillStyle = '#8a94a8';
+      for (let i = 0; i <= links; i++) {
+        const t = i / Math.max(1, links);
+        ctx.fillRect(this.ox + dx * t - 1.5, this.oy + dy * t - 1.5, 3, 3);
+      }
+      // 三爪钩
+      ctx.strokeStyle = '#d8e0f0';
       ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(tx, ty);
-      ctx.lineTo(this.x, this.y);
-      ctx.stroke();
-      ctx.fillStyle = '#c8d0e0';
-      ctx.beginPath();
-      ctx.arc(this.x, this.y, 3.5, 0, Math.PI * 2);
-      ctx.fill();
+      for (const a of [-0.7, 0, 0.7]) {
+        const ang = (dir > 0 ? 0 : Math.PI) + a;
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y);
+        ctx.lineTo(this.x + Math.cos(ang) * 7, this.y + Math.sin(ang) * 7);
+        ctx.stroke();
+      }
+      ctx.fillStyle = '#d8e0f0';
+      ctx.fillRect(this.x - 2, this.y - 2, 4, 4);
       return;
     }
+    const tx = this.x - dir * 7; // 箭尾
+    const ty = this.y - this.vy * 4;
     ctx.strokeStyle = '#c09860';
     ctx.lineWidth = 2;
     ctx.beginPath();
