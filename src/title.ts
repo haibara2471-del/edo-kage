@@ -93,11 +93,11 @@ export class Title {
     if (this.t % 70 < 45) {
       ctx.fillStyle = '#ffd24a';
       ctx.font = 'bold 18px monospace';
-      ctx.fillText('— 按 J 出阵 · 按 T 飞索修練場 —', W / 2, 380);
+      ctx.fillText('— PRESS J / 按 J 出阵 —', W / 2, 380);
     }
 
     ctx.fillStyle = 'rgba(255,255,255,0.35)';
     ctx.font = '11px monospace';
-    ctx.fillText('A/D 移动  W 跳/飞索  J 刀  K 镖  L 瞬身  U 昇月  H 乱舞  O 水月  B 图鉴', W / 2, 500);
+    ctx.fillText('A/D 移动  W 跳/二段跳  J 刀  K 镖  L 瞬身  U 昇月  H 乱舞  O 水月  B 图鉴', W / 2, 500);
   }
 }

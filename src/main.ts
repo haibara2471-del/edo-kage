@@ -7,14 +7,13 @@ import { Title } from './title';
 import { Codex } from './codex';
 import { resolveCombat } from './combat';
 import { drawHUD } from './ui';
-import { clamp, rectsOverlap } from './types';
+import { clamp } from './types';
 import type { World } from './world';
 
 const VIEW_W = 960;
 const VIEW_H = 540;
 const STEP = 1000 / 60; // 固定 60Hz 逻辑步进
 
-const IS_TRAINING = new URLSearchParams(location.search).has('training');
 const DEBUG = new URLSearchParams(location.search).has('debug');
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -23,7 +22,7 @@ ctx.imageSmoothingEnabled = false;
 
 const input = new Input();
 const effects = new Effects();
-const stage = new Stage(IS_TRAINING ? 'training' : 'level');
+const stage = new Stage();
 const player = new Player();
 const waves = new Waves();
 const title = new Title();
@@ -44,21 +43,10 @@ const world: World = {
 };
 
 type Mode = 'title' | 'play' | 'codex';
-let mode: Mode = IS_TRAINING ? 'play' : 'title';
-let trainingDone = false;
+let mode: Mode = 'title';
 let frameCount = 0;
 
-if (IS_TRAINING) {
-  waves.enabled = false;
-  player.x = stage.spawnPoint.x;
-  player.y = stage.spawnPoint.y;
-}
-
 window.addEventListener('keydown', (e) => {
-  if (e.code === 'KeyT' && mode === 'title') {
-    location.search = '?training=1'; // 标题画面按 T 进修練場
-    return;
-  }
   if (e.code === 'KeyR' && mode === 'play') location.reload();
   if (!DEBUG || mode !== 'play') return;
   // —— 开发者调试（?debug=1）——
@@ -128,13 +116,8 @@ function tick(): void {
   world.clouds = world.clouds.filter((c) => !c.dead);
 
   resolveCombat(world);
-  if (waves.enabled) waves.update(world);
+  waves.update(world);
   effects.update();
-
-  // 修練場：到达终点高台
-  if (IS_TRAINING && !trainingDone && rectsOverlap(player.rect, stage.goalZone)) {
-    trainingDone = true;
-  }
 
   // 相机平滑跟随
   const target = clamp(player.centerX - VIEW_W / 2, 0, stage.width - VIEW_W);
@@ -177,16 +160,6 @@ function render(): void {
     ctx.fillStyle = '#ffd24a';
     ctx.textAlign = 'right';
     ctx.fillText(`DEBUG${player.god ? ' · GOD' : ''}  [1/2/3 传送  N 清波  G 无敌]`, VIEW_W - 16, 20);
-  }
-
-  if (IS_TRAINING && trainingDone) {
-    ctx.textAlign = 'center';
-    ctx.font = 'bold 36px "Yu Mincho","MS Mincho",serif';
-    ctx.fillStyle = '#ffd24a';
-    ctx.fillText('修練完了！', VIEW_W / 2, 180);
-    ctx.font = '14px monospace';
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText('按 R 返回标题', VIEW_W / 2, 212);
   }
 
   if (mode === 'codex') codex.draw(ctx, VIEW_W, VIEW_H, frameCount);

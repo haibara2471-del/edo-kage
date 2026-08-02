@@ -60,5 +60,5 @@ export function drawHUD(ctx: CanvasRenderingContext2D, w: World, waves: Waves, v
   ctx.font = '11px monospace';
   ctx.textAlign = 'left';
   ctx.fillStyle = 'rgba(255,255,255,0.45)';
-  ctx.fillText('A/D 移动  W 跳/飞索  J 刀  K 镖  L 瞬身  U 昇月  H 乱舞  O 水月  B 图鉴  R 重开', 16, 526);
+  ctx.fillText('A/D 移动  W 跳/二段跳  J 刀  K 镖  L 瞬身  U 昇月  H 乱舞  O 水月  B 图鉴  R 重开', 16, 526);
 }

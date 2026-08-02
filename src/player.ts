@@ -1,6 +1,6 @@
 import type { Rect } from './types';
 import { clamp } from './types';
-import { integrate, GRAVITY } from './physics';
+import { integrate } from './physics';
 import { Projectile, WaterOrb } from './projectile';
 import { drawNinja, drawSlashFx } from './characters';
 import type { World } from './world';
@@ -36,34 +36,13 @@ const SHURIKEN_SPEED = 11;
 const THROW_CD = 12;
 const KI_PER_HIT = 8;
 
-const LAUNCHER_COST = 10;   // 腾空击
+const LAUNCHER_COST = 10;   // 昇月斬
 const LAUNCHER_VEL = -9;
-const FLURRY_COST = 20;     // 七十二斩
+const FLURRY_COST = 20;     // 朧乱舞
 const FLURRY_TIME = 36;     // 9 段连斩（每 4 帧一段）
-const ORB_COST = 25;        // 水魔爆
+const ORB_COST = 25;        // 水月の術
 
-const ROPE_SPEED = 14;    // 绳头飞行速度（快于玩家甩出速度，保证接力命中）
-const ROPE_MAX = 340;     // 绳索最大长度
-const REHOOK_CD = 10;     // 松钩后到再次抛索的间隔（按住 I 时自动接力）
-const SWING_PUMP = 0.25;  // 手动摆荡助力（A/D，自己掌握节奏）
-const SWING_AUTO = 0.04;  // 共振泵摆（轻微保活，振幅缓慢增长）
-const SWING_KICK = 1.0;   // 钩住瞬间朝目标侧的初速度
-const SWING_MAX = 6;      // 摆速上限（慢而稳，看得清弧线）
-
-type State = 'idle' | 'run' | 'air' | 'attack' | 'launcher' | 'flurry' | 'dash' | 'grapple' | 'hit' | 'dead';
-
-interface Rope {
-  phase: 'fly' | 'attach';
-  hx: number; hy: number;   // 绳头位置
-  dx: number; dy: number;   // 飞行方向（单位向量）
-  traveled: number;
-  ax: number; ay: number;   // 锚点
-  len: number;              // 绳长
-  dir: number;              // 抛索时的行进方向（±1），摆荡只朝这个方向送
-  side: number;             // = -dir，备用
-}
-
-const ATTACH_DAMP = 2.5;  // 钩住瞬间切向速度软着陆上限
+type State = 'idle' | 'run' | 'air' | 'attack' | 'launcher' | 'flurry' | 'dash' | 'hit' | 'dead';
 
 export class Player {
   x = 120;
@@ -88,11 +67,6 @@ export class Player {
   dashTimer = 0;
   dashCd = 0;
   dashDir = 1;
-
-  rope: Rope | null = null;
-  grappleCd = 0;
-  private lastHook: { x: number; y: number } | null = null; // 刚松开的锚点（接力时跳过，防止钩回同一根）
-  private lastHookUntil = 0;
 
   hitTimer = 0;
   invTimer = 0;      // 受击后/瞬身中的无敌帧
@@ -159,7 +133,6 @@ export class Player {
     if (this.god) return;
     if (this.state === 'dead' || this.state === 'dash' || this.invTimer > 0) return;
     this.hp = Math.max(0, this.hp - dmg);
-    this.rope = null;
     w.effects.playerHit(this.centerX, this.centerY);
     if (this.hp <= 0) {
       this.state = 'dead';
@@ -179,210 +152,6 @@ export class Player {
     this.attackId++;
   }
 
-  /** 坠入天堑 = 任务失败（修練場则回起点） */
-  private checkPit(w: World): boolean {
-    if (this.y > w.stage.groundY + 100) {
-      if (w.stage.isTraining) {
-        this.x = w.stage.spawnPoint.x;
-        this.y = w.stage.spawnPoint.y;
-        this.vx = 0;
-        this.vy = 0;
-        this.rope = null;
-        this.state = 'air';
-        return false;
-      }
-      this.hp = 0;
-      this.rope = null;
-      this.state = 'dead';
-      return true;
-    }
-    return false;
-  }
-
-  /** 自动瞄准：行进方向前上方最近的锚点（无目标返回 null） */
-  private findAnchor(w: World): { x: number; y: number } | null {
-    const stage = w.stage;
-    const dir =
-      (w.input.isHeld('left') ? -1 : 0) + (w.input.isHeld('right') ? 1 : 0) || this.facing;
-    let best: { x: number; y: number } | null = null;
-    let bestD = ROPE_MAX;
-    for (const a of stage.anchors) {
-      // 跳过刚松开的锚点（40 帧内），接力时锁定下一根
-      if (
-        this.lastHook &&
-        this.t < this.lastHookUntil &&
-        Math.hypot(a.x - this.lastHook.x, a.y - this.lastHook.y) < 30
-      ) {
-        continue;
-      }
-      const ddx = a.x - this.centerX;
-      const ddy = a.y - (this.y + 10);
-      if (ddy > -16) continue;                                // 必须在上方
-      if (Math.abs(ddx) < 20 || Math.sign(ddx) !== dir) continue; // 必须在行进方向前方
-      const d = Math.hypot(ddx, ddy);
-      if (d < bestD) {
-        bestD = d;
-        best = { x: a.x, y: a.y };
-      }
-    }
-    return best;
-  }
-
-  /** 绳头飞行：45° 前上方，钩住横梁/平台/锚点 */
-  private updateRopeFly(w: World): void {
-    const r = this.rope;
-    if (!r || r.phase !== 'fly') return;
-
-    r.hx += r.dx * ROPE_SPEED;
-    r.hy += r.dy * ROPE_SPEED;
-    r.traveled += ROPE_SPEED;
-
-    const stage = w.stage;
-    let attach: { x: number; y: number } | null = null;
-
-    for (const a of stage.anchors) {
-      if (Math.hypot(a.x - r.hx, a.y - r.hy) < 22) {
-        attach = { x: a.x, y: a.y };
-        break;
-      }
-    }
-    if (!attach) {
-      for (const rc of stage.ropeTargets) {
-        if (
-          r.hx >= rc.x - 8 && r.hx <= rc.x + rc.w + 8 &&
-          r.hy >= rc.y - 8 && r.hy <= rc.y + rc.h + 8
-        ) {
-          attach = { x: r.hx, y: r.hy };
-          break;
-        }
-      }
-    }
-
-    if (attach) {
-      r.phase = 'attach';
-      r.ax = attach.x;
-      r.ay = attach.y;
-      // 绳长上限：弧底不低于地面（防止摆到沟沿时被地面"接住"而断绳卡死）
-      const rawLen = Math.hypot(this.centerX - r.ax, this.y + 10 - r.ay);
-      r.len = Math.max(46, Math.min(rawLen, stage.groundY - 28 - r.ay));
-      // 目标侧永远锁定行进方向（即使高速飞过了锚点，也只会向前甩，不会回程）
-      r.side = -r.dir;
-      // 切向速度软着陆：钩住瞬间把摆速压到上限，每荡都从容开始
-      const nx = (this.centerX - r.ax) / (rawLen || 1);
-      const ny = (this.y + 10 - r.ay) / (rawLen || 1);
-      const vr = this.vx * nx + this.vy * ny;
-      let tvx = this.vx - vr * nx;
-      let tvy = this.vy - vr * ny;
-      const ts = Math.hypot(tvx, tvy);
-      if (ts > ATTACH_DAMP) {
-        tvx = (tvx / ts) * ATTACH_DAMP;
-        tvy = (tvy / ts) * ATTACH_DAMP;
-      }
-      this.vx = vr * nx + tvx + r.dir * SWING_KICK;
-      this.vy = vr * ny + tvy;
-      this.state = 'grapple';
-      w.effects.puff(attach.x, attach.y);
-    } else if (r.traveled > ROPE_MAX || r.hy < 8 || r.hx < 0 || r.hx > stage.width) {
-      this.rope = null; // 没钩到，绳索收回
-      this.grappleCd = 15;
-    }
-  }
-
-  /** 松钩：跳跃键给小跳助力，松开 I 直接自由落体 */
-  private detach(w: World, boost: boolean): void {
-    if (this.rope && this.rope.phase === 'attach') {
-      this.lastHook = { x: this.rope.ax, y: this.rope.ay };
-      this.lastHookUntil = this.t + 40;
-    }
-    this.state = 'air';
-    this.rope = null;
-    this.grappleCd = REHOOK_CD;
-    this.airJumps = 1; // 摆荡后补一次二段跳
-    if (boost) this.vy = Math.min(this.vy, -3.5);
-    this.facing = Math.sign(this.vx) || this.facing; // 朝向跟随飞跃方向（接力瞄准用）
-    w.effects.puff(this.centerX, this.centerY);
-  }
-
-  /** 钟摆摆荡：按住 I 保持悬挂，松开即自由落体 */
-  private updateSwing(w: World): void {
-    const r = this.rope;
-    if (!r) {
-      this.state = 'air';
-      return;
-    }
-    const { stage, input } = w;
-
-    // 再按 W = 松手飞出（松手时机全由玩家决定）
-    if (input.consume('jump')) { this.detach(w, true); return; }
-
-    // 共振泵摆：沿当前切向运动方向加速（荡秋千式发力，振幅自然增长）
-    this.vy += GRAVITY;
-    const rdx = this.centerX - r.ax;
-    const rdy = this.y + 10 - r.ay;
-    const rdist = Math.hypot(rdx, rdy) || 1;
-    const tx = -rdy / rdist;
-    const ty = rdx / rdist;
-    const vt = this.vx * tx + this.vy * ty;
-    if (Math.abs(vt) > 0.05) {
-      this.vx += tx * Math.sign(vt) * SWING_AUTO;
-      this.vy += ty * Math.sign(vt) * SWING_AUTO;
-    }
-    const move = (input.isHeld('left') ? -1 : 0) + (input.isHeld('right') ? 1 : 0);
-    this.vx += move * SWING_PUMP;
-    const sp = Math.hypot(this.vx, this.vy);
-    if (sp > SWING_MAX) {
-      this.vx = (this.vx / sp) * SWING_MAX;
-      this.vy = (this.vy / sp) * SWING_MAX;
-    }
-    this.x += this.vx;
-    this.y += this.vy;
-
-    // 绳长约束：拉回圆周并去掉径向速度
-    const dx = this.centerX - r.ax;
-    const dy = this.y + 10 - r.ay;
-    const dist = Math.hypot(dx, dy);
-    if (dist > r.len && dist > 0) {
-      const nx = dx / dist;
-      const ny = dy / dist;
-      this.x = r.ax + nx * r.len - this.w / 2;
-      this.y = r.ay + ny * r.len - 10;
-      const vr = this.vx * nx + this.vy * ny;
-      this.vx -= vr * nx;
-      this.vy -= vr * ny;
-    }
-
-    // 落到地面/平台 → 自动松钩
-    if (this.vy >= 0) {
-      const prevBottom = this.y + this.h - this.vy;
-      let surface: number | null = null;
-      if (
-        this.y + this.h >= stage.groundY &&
-        (stage.hasGroundAt(this.x + 2) || stage.hasGroundAt(this.x + this.w - 2))
-      ) {
-        surface = stage.groundY;
-      }
-      for (const p of stage.platforms) {
-        const overlapX = this.x + this.w > p.x && this.x < p.x + p.w;
-        if (overlapX && prevBottom <= p.y + 1 && this.y + this.h >= p.y) {
-          surface = surface === null ? p.y : Math.min(surface, p.y);
-        }
-      }
-      if (surface !== null) {
-        this.y = surface - this.h;
-        this.vy = 0;
-        this.onGround = true;
-        this.state = 'idle';
-        this.rope = null;
-        this.grappleCd = 15;
-        w.effects.puff(this.centerX, this.y + this.h);
-        return;
-      }
-    }
-
-    this.x = clamp(this.x, 0, stage.width - this.w);
-    this.checkPit(w);
-  }
-
   update(w: World): void {
     this.t++;
     if (this.state === 'dead') return;
@@ -391,7 +160,6 @@ export class Player {
     if (this.dashCd > 0) this.dashCd--;
     if (this.throwCd > 0) this.throwCd--;
     if (this.coyote > 0) this.coyote--;
-    if (this.grappleCd > 0) this.grappleCd--;
     if (this.poisonTimer > 0) {
       this.poisonTimer--;
       if (this.poisonTimer % 30 === 0) this.dot(1);
@@ -404,15 +172,6 @@ export class Player {
       this.hitTimer--;
       integrate(this, stage);
       if (this.hitTimer <= 0) this.state = this.onGround ? 'idle' : 'air';
-      return;
-    }
-
-    // 绳头飞行（并行于当前状态，钩中后转入摆荡）
-    this.updateRopeFly(w);
-
-    // 摆荡
-    if (this.state === 'grapple') {
-      this.updateSwing(w);
       return;
     }
 
@@ -468,7 +227,7 @@ export class Player {
       return;
     }
 
-    // 跳跃 / 飞索 / 二段跳（攻击中不可）
+    // 跳跃 / 二段跳（攻击中不可）
     if (!attacking && input.consume('jump')) {
       if (this.onGround || this.coyote > 0) {
         this.vy = JUMP_VEL;
@@ -476,29 +235,6 @@ export class Player {
         this.coyote = 0;
         this.airJumps = 1;
         effects.puff(this.centerX, this.y + this.h);
-      } else if (!this.rope && this.grappleCd <= 0) {
-        // 空中：附近有锚点 → 自动抛索；否则二段跳
-        const target = this.findAnchor(w);
-        if (target) {
-          const dir = move !== 0 ? move : this.facing;
-          const ddx = target.x - this.centerX;
-          const ddy = target.y - (this.y + 10);
-          const d = Math.hypot(ddx, ddy) || 1;
-          this.rope = {
-            phase: 'fly',
-            hx: this.centerX,
-            hy: this.y + 10,
-            dx: ddx / d,
-            dy: ddy / d,
-            traveled: 0,
-            ax: 0, ay: 0, len: 0, dir, side: -dir,
-          };
-          effects.puff(this.centerX, this.centerY);
-        } else if (this.airJumps > 0) {
-          this.vy = DJUMP_VEL;
-          this.airJumps--;
-          effects.ring(this.centerX, this.y + this.h - 6);
-        }
       } else if (this.airJumps > 0) {
         this.vy = DJUMP_VEL;
         this.airJumps--;
@@ -596,7 +332,6 @@ export class Player {
 
     const wasGround = this.onGround;
     integrate(this, stage);
-    if (this.checkPit(w)) return;
     if (wasGround && !this.onGround && this.vy > 0) this.coyote = 6;
 
     // 落地取消挥刀
@@ -612,28 +347,6 @@ export class Player {
   }
 
   draw(ctx: CanvasRenderingContext2D): void {
-    // 绳索（飞行中的绳头 / 钩住后带下垂的绳）
-    if (this.rope) {
-      const r = this.rope;
-      const tx = r.phase === 'fly' ? r.hx : r.ax;
-      const ty = r.phase === 'fly' ? r.hy : r.ay;
-      ctx.strokeStyle = '#c8b088';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(this.centerX, this.y + 10);
-      if (r.phase === 'attach') {
-        // 松弛下垂
-        const dist = Math.hypot(this.centerX - r.ax, this.y + 10 - r.ay);
-        const sag = Math.max(3, (r.len - dist) * 0.5 + 3);
-        ctx.quadraticCurveTo((this.centerX + r.ax) / 2, (this.y + 10 + r.ay) / 2 + sag, r.ax, r.ay);
-      } else {
-        ctx.lineTo(tx, ty);
-      }
-      ctx.stroke();
-      ctx.fillStyle = '#e8ecf8';
-      ctx.fillRect(tx - 2.5, ty - 2.5, 5, 5);
-    }
-
     // 无敌帧闪烁
     if (
       this.invTimer > 0 &&
@@ -646,7 +359,7 @@ export class Player {
 
     drawNinja(ctx, this.x, this.y, this.w, this.h, this.facing, {
       state:
-        this.state === 'grapple' || this.state === 'launcher' ? 'air' :
+        this.state === 'launcher' ? 'air' :
         this.state === 'flurry' ? 'dash' : this.state,
       t: this.t,
       attackStage: this.attackStage,

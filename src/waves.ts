@@ -9,9 +9,16 @@ import type { World } from './world';
 
 type Phase = 'start' | 'fight' | 'advance' | 'done';
 
+/** 战区边界（造梦西游式区域封锁；地面已连通，不再依赖地形分段） */
+const ZONES = [
+  { x0: 0, x1: 1050 },
+  { x0: 1350, x1: 1950 },
+  { x0: 2310, x1: 2750 },
+];
+
 /**
  * 造梦西游式区域封锁：每个战区刷一波怪，清完结界才打开；
- * 推进阶段（过深沟）刷守卫飞行敌人骚扰；进入下一战区触发下一波。
+ * 走进下一战区触发下一波。
  */
 export class Waves {
   wave = 0;
@@ -27,15 +34,9 @@ export class Waves {
     [{ x: 1485, y: 346 - 34 }],
     [{ x: 2470, y: 350 - 34 }],
   ];
-  /** 深沟守卫：清波后推进时刷出，悬在沟上方骚扰摆荡中的玩家 */
-  private gapGuards: { crow: number; bat: number }[] = [
-    { crow: 1, bat: 0 },
-    { crow: 1, bat: 1 },
-  ];
 
   private phase: Phase = 'start';
   private timer = 60;
-  private guarded = 0;
 
   /** 修練場置 false：不刷怪、不报波次 */
   enabled = true;
@@ -48,7 +49,6 @@ export class Waves {
   update(w: World): void {
     if (!this.enabled) return;
     if (this.announceTimer > 0) this.announceTimer--;
-    const zones = w.stage.grounds;
 
     switch (this.phase) {
       case 'start':
@@ -64,13 +64,12 @@ export class Waves {
           } else {
             this.phase = 'advance';
             this.barrierX = null;
-            this.spawnGapGuards(w);
           }
         }
         break;
 
       case 'advance': {
-        const next = zones[this.wave]; // 下一战区（wave 为已完成的波数）
+        const next = ZONES[this.wave]; // 下一战区（wave 为已完成的波数）
         if (w.player.centerX > next.x0 + 80) this.startWave(w, this.wave);
         break;
       }
@@ -80,28 +79,12 @@ export class Waves {
     }
   }
 
-  private spawnGapGuards(w: World): void {
-    if (this.guarded >= this.gapGuards.length) return;
-    const zones = w.stage.grounds;
-    const gapL = zones[this.wave - 1].x1;
-    const gapR = zones[this.wave].x0;
-    const cx = (gapL + gapR) / 2;
-    const g = this.gapGuards[this.guarded];
-    this.guarded++;
-    for (let i = 0; i < g.crow; i++) {
-      w.enemies.push(new Flyer(cx - 40 + i * 80, w.stage.groundY - 230, 'crow'));
-    }
-    for (let i = 0; i < g.bat; i++) {
-      w.enemies.push(new Flyer(cx + 30 + i * 70, w.stage.groundY - 170, 'bat'));
-    }
-  }
-
   private startWave(w: World, zoneIdx: number): void {
     this.wave++;
     this.phase = 'fight';
     this.announceTimer = 90;
 
-    const zone = w.stage.grounds[zoneIdx];
+    const zone = ZONES[zoneIdx];
     this.barrierX = zone.x1 - 12; // 结界封住右出口（最后一区即关卡尽头，无实际限制）
 
     const comp = this.comps[zoneIdx];
