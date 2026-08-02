@@ -72,7 +72,9 @@ if (REPLAY_ID) {
     input = new ReplayInput(run.log); // 同输入
     world.input = input;
     replayInfo = { id: run.id, result: run.result, wave: run.wave };
-    mode = 'play';
+    // 从标题画面开始回放：日志帧是绝对时间轴（含标题停留），
+    // 记录的 J 键会在同一帧触发开局，保证敌人刷新与输入对齐
+    mode = 'title';
   });
 }
 
