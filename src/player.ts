@@ -37,9 +37,10 @@ const THROW_CD = 12;
 const KI_PER_HIT = 8;
 
 const ROPE_SPEED = 14;    // 绳头飞行速度
-const ROPE_MAX = 300;     // 绳索最大长度
+const ROPE_MAX = 340;     // 绳索最大长度
 const ROPE_HOLD = 60;     // 钩住后最多支撑 1 秒
-const SWING_PUMP = 0.22;  // 摆荡助力（A/D）
+const SWING_PUMP = 0.22;  // 手动摆荡助力（A/D）
+const SWING_AUTO = 0.14;  // 自动泵摆（朝目标侧持续加力，一键荡过去）
 const SWING_MAX = 12;
 
 type State = 'idle' | 'run' | 'air' | 'attack' | 'dash' | 'grapple' | 'hit' | 'dead';
@@ -52,6 +53,7 @@ interface Rope {
   ax: number; ay: number;   // 锚点
   len: number;              // 绳长
   hold: number;             // 剩余支撑帧数
+  side: number;             // 钩住时玩家相对锚点的方位（±1），荡到另一侧即接近落点
 }
 
 export class Player {
@@ -163,7 +165,7 @@ export class Player {
     let attach: { x: number; y: number } | null = null;
 
     for (const a of stage.anchors) {
-      if (Math.hypot(a.x - r.hx, a.y - r.hy) < 18) {
+      if (Math.hypot(a.x - r.hx, a.y - r.hy) < 22) {
         attach = { x: a.x, y: a.y };
         break;
       }
@@ -171,8 +173,8 @@ export class Player {
     if (!attach) {
       for (const rc of stage.ropeTargets) {
         if (
-          r.hx >= rc.x - 5 && r.hx <= rc.x + rc.w + 5 &&
-          r.hy >= rc.y - 5 && r.hy <= rc.y + rc.h + 5
+          r.hx >= rc.x - 8 && r.hx <= rc.x + rc.w + 8 &&
+          r.hy >= rc.y - 8 && r.hy <= rc.y + rc.h + 8
         ) {
           attach = { x: r.hx, y: r.hy };
           break;
@@ -186,6 +188,7 @@ export class Player {
       r.ay = attach.y;
       r.len = Math.max(46, Math.hypot(this.centerX - r.ax, this.y + 10 - r.ay));
       r.hold = ROPE_HOLD;
+      r.side = Math.sign(this.centerX - r.ax) || -1;
       this.state = 'grapple';
       w.effects.puff(attach.x, attach.y);
     } else if (r.traveled > ROPE_MAX || r.hy < 8 || r.hx < 0 || r.hx > stage.width) {
@@ -223,10 +226,10 @@ export class Player {
       return;
     }
 
-    // 摆动物理
+    // 摆动物理：自动朝目标侧泵摆 + A/D 手动加力
     this.vy += GRAVITY;
     const move = (input.isHeld('left') ? -1 : 0) + (input.isHeld('right') ? 1 : 0);
-    this.vx += move * SWING_PUMP;
+    this.vx += -r.side * SWING_AUTO + move * SWING_PUMP;
     const sp = Math.hypot(this.vx, this.vy);
     if (sp > SWING_MAX) {
       this.vx = (this.vx / sp) * SWING_MAX;
@@ -247,6 +250,14 @@ export class Player {
       const vr = this.vx * nx + this.vy * ny;
       this.vx -= vr * nx;
       this.vy -= vr * ny;
+    }
+
+    // 自动松手：荡过支点到另一侧、升至接近最高点时自动飞出（手动 W/I 仍可提前松）
+    const sideNow = Math.sign(this.centerX - r.ax) || r.side;
+    if (sideNow !== r.side && this.vy > -1) {
+      this.vx *= 1.15;
+      this.detach(w, true);
+      return;
     }
 
     // 落到地面/平台 → 自动松钩
@@ -338,7 +349,7 @@ export class Player {
         dx: dir * 0.7071,
         dy: -0.7071,
         traveled: 0,
-        ax: 0, ay: 0, len: 0, hold: 0,
+        ax: 0, ay: 0, len: 0, hold: 0, side: 0,
       };
       effects.puff(this.centerX, this.centerY);
     }
@@ -436,11 +447,14 @@ export class Player {
   }
 
   draw(ctx: CanvasRenderingContext2D): void {
-    // 绳索（飞行中的绳头 / 钩住后带下垂的绳）
+    // 绳索（飞行中的绳头 / 钩住后带下垂的绳；临近断裂时闪烁）
     if (this.rope) {
       const r = this.rope;
       const tx = r.phase === 'fly' ? r.hx : r.ax;
       const ty = r.phase === 'fly' ? r.hy : r.ay;
+      if (r.phase === 'attach' && r.hold < 20 && Math.floor(r.hold / 3) % 2 === 0) {
+        ctx.globalAlpha = 0.35;
+      }
       ctx.strokeStyle = '#c8b088';
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -456,6 +470,7 @@ export class Player {
       ctx.stroke();
       ctx.fillStyle = '#e8ecf8';
       ctx.fillRect(tx - 2.5, ty - 2.5, 5, 5);
+      ctx.globalAlpha = 1;
     }
 
     // 无敌帧闪烁

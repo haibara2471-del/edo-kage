@@ -55,7 +55,7 @@ function tick(): void {
   }
 
   if (mode === 'codex') {
-    if (input.consume('codex') || input.consume('attack')) mode = 'play';
+    if (codex.update(input)) mode = 'play';
     return;
   }
 
