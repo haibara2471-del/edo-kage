@@ -110,6 +110,7 @@ stage 7  Boss + 双钩使（真 Boss 战）
 - [x] 观测加入敌人速度/面向与攻击 affordance
 - [x] 跑 stage 0-1，验证管线健康
 - [x] bossEasy → Boss 完全体 100% 胜率
-- [ ] 用 1+2+3（VecNormalize + [512,512] + n_steps=2048 + ent=0.05）重新训练 waves 300 万步
-- [ ] worktree 并行验证方案 4：稀疏奖励
-- [ ] 用 `ai-analyze.ts` 对比两组模型
+- [x] 用 1+2+3（VecNormalize + [512,512] + n_steps=2048 + ent=0.05）重新训练 waves 300 万步
+- [x] worktree 并行验证方案 4：稀疏奖励
+- [x] 用 `ai-analyze.ts` 对比两组模型
+- [ ] 用 ppo_wave1 迁移初始化 + 低学习率 fine-tune waves，引入已学会的战斗先验

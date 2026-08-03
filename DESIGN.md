@@ -268,6 +268,10 @@
     - `ent_coef=0.05` 提高探索
     - 支持 `EDO_RL_PORT` 环境变量，方便 worktree 并行跑多组实验
   - **开 worktree 验证方案 4**：稀疏奖励（更 AlphaGo 风格），与主支 1+2+3 并行对比
+  - **300 万步并行实验结果**：
+    - 主支 1+2+3：EV 一度 0.9+ 但 eval episode length 仍是 1350（timeout），ai-analyze 上 waves 0/10 timeout，wave1 0/10 timeout——模型塌缩为 spam 手里剑 + 站着不动
+    - 稀疏奖励：EV 后期变负，表现比主支还差，全场景几乎 0%
+  - **结论**：纯从 scratch + 当前 dense/sparse reward + PPO 网络/超参调整，**仍无法让模型学会主动移动/接敌**。需要引入外部先验（ppo_wave1 迁移初始化）才能继续推进
 
 ## 10. TODO / backlog
 
