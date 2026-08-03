@@ -20,12 +20,13 @@ SCENARIO = sys.argv[1] if len(sys.argv) > 1 else "ashigaru"
 TOTAL_STEPS = int(sys.argv[2]) if len(sys.argv) > 2 else 500_000
 RESUME = "resume" in sys.argv
 INIT = next((a.split("=", 1)[1] for a in sys.argv if a.startswith("init=")), None)
+LR_OVERRIDE = next((float(a.split("=", 1)[1]) for a in sys.argv if a.startswith("lr=")), None)
 N_ENVS = 16
 N_STEPS = 2048   # 覆盖完整 episode（waves 最长 1350 步）
 BATCH_SIZE = 512
 GAMMA = 0.995
 GAE_LAMBDA = 0.95
-LEARNING_RATE = 1e-4
+LEARNING_RATE = LR_OVERRIDE if LR_OVERRIDE is not None else 1e-4
 ENT_COEF = 0.05  # 提高熵，打破 spam 局部最优
 POLICY_KWARGS = dict(net_arch=[512, 512])
 
