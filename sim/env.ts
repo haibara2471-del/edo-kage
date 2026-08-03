@@ -271,15 +271,10 @@ export class GameEnv {
     const wasHit = this.prevState !== 'hit' && this.player.state === 'hit' ? 1 : 0;
     this.hitCount += wasHit;
 
-    // ⑦ 气经济：回气奖励；耗气命中鼓励；耗气未命中轻罚（惩罚减半，鼓励探索）
+    // ⑦ 气经济：回气奖励，耗气惩罚（与命中脱钩，命中奖励由 dealtReward 单独给）
     const kiNow = this.player.ki;
     const kiDelta = kiNow - this.prevKi; // 正=回气 负=耗气
-    const hitThisStep = dealtReward > 0;
-    const kiReward = kiDelta > 0
-      ? kiDelta * 0.02                         // 回气：+0.02/气
-      : hitThisStep
-        ? -kiDelta * 0.02                      // 耗气且命中：净奖励（鼓励用气换伤害）
-        : kiDelta * 0.1;                       // 耗气未命中：-0.1/气（狠罚空大，抑制 spam）
+    const kiReward = kiDelta > 0 ? kiDelta * 0.02 : kiDelta * 0.1; // 回气+0.02/气，耗气-0.1/气
 
     let reward =
       dealtReward +          // ① 输出伤害（分来源）
