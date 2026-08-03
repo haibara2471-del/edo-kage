@@ -251,7 +251,7 @@ export class GameEnv {
       if (h.src === 'blade') bladeDmg += h.dmg;
       else skillDmg += h.dmg;
     }
-    dealtReward = bladeDmg * 0.4 + skillDmg * 0.6; // 平A×0.4 / 技能×0.6（命中才给）
+    dealtReward = bladeDmg * 0.8 + skillDmg * 1.0; // 平A×0.8 / 技能×1.0（命中才给，力大砖飞档）
     this.world.lastHits = [];
 
     // ⑥ combo 多样性：最近 12 步（0.8s）内由 ≥2 种不同来源造成的累计伤害 ≥10
@@ -286,7 +286,7 @@ export class GameEnv {
       killsNow * 2 -         // ③ 击杀
       taken * 0.15 -         // ② 承受伤害
       wasHit * 0.3 -         // ④ 被控制次数
-      - 0.003 * frames +       // ⑤ 通关速度（不动成本提高，打破"站着等"）
+      - 0.01 * frames +       // ⑤ 通关速度（大幅提惩罚，逼 AI 必须找正回报）
       comboBonus +           // ⑥ combo 多样性
       kiReward;              // ⑦ 气经济
     let done = false;
