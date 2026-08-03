@@ -9,6 +9,9 @@ import type { Codex, CodexId } from './codex';
 
 /** 可被攻击/可攻击玩家的实体（足轻、弓箭手、飞行敌人……） */
 export interface Hittable {
+  x: number;
+  readonly w: number;
+  vx: number;
   readonly rect: Rect;
   readonly dead: boolean;
   readonly removable: boolean;

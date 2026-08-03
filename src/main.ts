@@ -185,14 +185,30 @@ function tick(): void {
 
   player.update(world);
 
-  // 结界：波次未清完时封锁右路；Boss 战同时封锁左路
-  if (waves.barrierX !== null && player.x + player.w > waves.barrierX) {
-    player.x = waves.barrierX - player.w;
-    if (player.vx > 0) player.vx = 0;
+  // 结界：波次未清完时封锁右路；Boss 战同时封锁左路（玩家和怪物都夹住，防止击退逃逸）
+  if (waves.barrierX !== null) {
+    if (player.x + player.w > waves.barrierX) {
+      player.x = waves.barrierX - player.w;
+      if (player.vx > 0) player.vx = 0;
+    }
+    for (const e of world.enemies) {
+      if (e.x + e.w > waves.barrierX) {
+        e.x = waves.barrierX - e.w;
+        if (e.vx > 0) e.vx = 0;
+      }
+    }
   }
-  if (waves.barrierL !== null && player.x < waves.barrierL) {
-    player.x = waves.barrierL;
-    if (player.vx < 0) player.vx = 0;
+  if (waves.barrierL !== null) {
+    if (player.x < waves.barrierL) {
+      player.x = waves.barrierL;
+      if (player.vx < 0) player.vx = 0;
+    }
+    for (const e of world.enemies) {
+      if (e.x < waves.barrierL) {
+        e.x = waves.barrierL;
+        if (e.vx < 0) e.vx = 0;
+      }
+    }
   }
 
   for (const e of world.enemies) e.update(world);

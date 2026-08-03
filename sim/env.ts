@@ -6,13 +6,18 @@ import { Stage } from '../src/stage';
 import { Player } from '../src/player';
 import { Enemy } from '../src/enemy';
 import { Boss } from '../src/boss';
+import { Flyer } from '../src/flyer';
+import { Archer } from '../src/archer';
+import { HookSoldier } from '../src/hooksoldier';
+import { Bruiser } from '../src/bruiser';
+import { Shaman } from '../src/shaman';
 import { Effects } from '../src/effects';
 import { Codex } from '../src/codex';
 import { resolveCombat } from '../src/combat';
 import { reseed } from '../src/rng';
 import type { World } from '../src/world';
 
-export type Scenario = 'ashigaru' | 'wave1' | 'boss';
+export type Scenario = 'ashigaru' | 'wave1' | 'waves' | 'boss';
 
 /** 直接注入式输入（每帧可设置按住集合 + 点按） */
 class EnvInput {
@@ -69,7 +74,23 @@ export const ACTIONS: string[][] = [
 ];
 
 const OBS_SIZE = 42;
-const MAX_TICKS = 1800; // 30 秒上限
+
+/** 技能气耗（与 player.ts 一致），用于空放惩罚 */
+const SKILL_COSTS: Record<string, number> = {
+  shuriken: 10,
+  skillU: 10,
+  skillH: 20,
+  skillO: 25,
+};
+
+function maxTicks(scenario: Scenario): number {
+  switch (scenario) {
+    case 'ashigaru': return 1800;
+    case 'wave1': return 3000;
+    case 'waves': return 5400;
+    case 'boss': return 3600;
+  }
+}
 
 export class GameEnv {
   readonly obsSize = OBS_SIZE;
@@ -79,9 +100,14 @@ export class GameEnv {
   private input!: EnvInput;
   private player!: Player;
   private t = 0;
+  private waveIdx = 0;
   private prevPlayerHp = 100;
   private prevEnemyTotalHp = 0;
+  private prevEnemiesAlive = 0;
   private prevDist = 0;
+  private totalKills = 0;
+  private recentDmg: number[] = []; // 最近 45 帧内每帧造成的伤害（combo 计量）
+  private comboPeak = 0;
 
   constructor(private scenario: Scenario) {}
 
@@ -107,6 +133,7 @@ export class GameEnv {
       camX: 0,
     };
     this.world = world;
+    this.waveIdx = 0;
 
     if (this.scenario === 'ashigaru') {
       world.enemies.push(Enemy.ashigaru(this.player.x + 90, stage.groundY));
@@ -114,6 +141,8 @@ export class GameEnv {
       for (let i = 0; i < 3; i++) {
         world.enemies.push(Enemy.ashigaru(this.player.x + 140 + i * 120, stage.groundY));
       }
+    } else if (this.scenario === 'waves') {
+      this.spawnWave(1);
     } else if (this.scenario === 'boss') {
       world.enemies.push(new Boss(this.player.x + 90, stage.groundY - 40));
     }
@@ -121,56 +150,135 @@ export class GameEnv {
     this.t = 0;
     this.prevPlayerHp = this.player.hp;
     this.prevEnemyTotalHp = this.enemyTotalHp();
+    this.prevEnemiesAlive = world.enemies.length;
     this.prevDist = this.nearestEnemyDist();
+    this.totalKills = 0;
+    this.recentDmg = [];
+    this.comboPeak = 0;
     return this.observe();
+  }
+
+  /** 正式三波阵容（与 waves.ts 一致） */
+  private spawnWave(idx: number): void {
+    this.waveIdx = idx;
+    const stage = this.world.stage;
+    const px = this.player.centerX;
+    const gy = stage.groundY;
+    const E = this.world.enemies;
+    if (idx === 1) {
+      for (let i = 0; i < 3; i++) E.push(Enemy.ashigaru(px + 140 + i * 120, gy));
+    } else if (idx === 2) {
+      for (let i = 0; i < 3; i++) E.push(Enemy.ashigaru(px + 120 + i * 130, gy));
+      E.push(new Flyer(px + 240, gy - 220, 'crow'));
+      E.push(new Archer(px + 300, gy - 34));
+      E.push(new HookSoldier(px + 380, gy - 34));
+    } else if (idx === 3) {
+      for (let i = 0; i < 2; i++) E.push(Enemy.ashigaru(px + 120 + i * 140, gy));
+      E.push(new Flyer(px + 220, gy - 160, 'bat'));
+      E.push(new Archer(px + 320, gy - 34));
+      E.push(new Bruiser(px + 260, gy - 46));
+      E.push(new Shaman(px + 400, gy - 32));
+    }
   }
 
   step(actionIdx: number): { obs: number[]; reward: number; done: boolean; info: Record<string, number> } {
     const input = this.input;
-    input.beginTick();
-    input.clearMomentary();
-
-    // 映射动作：方向键为按住，其余为点按
     const combo = ACTIONS[actionIdx] ?? [];
-    input.setHeld('left', combo.includes('left'));
-    input.setHeld('right', combo.includes('right'));
-    for (const a of combo) {
-      if (a !== 'left' && a !== 'right') input.press(a);
+    const kiBefore = this.player.ki;
+
+    // 帧跳跃：每个 agent 步 = 4 游戏帧（15Hz 决策，动作连贯、信用分配更稳）
+    for (let f = 0; f < 4; f++) {
+      input.beginTick();
+      input.clearMomentary();
+      if (f === 0) {
+        // 映射动作：方向键为按住（整个步内），其余为首帧点按
+        input.setHeld('left', combo.includes('left'));
+        input.setHeld('right', combo.includes('right'));
+        for (const a of combo) {
+          if (a !== 'left' && a !== 'right') input.press(a);
+        }
+      }
+      this.tick();
+      if (this.player.state === 'dead') break;
     }
 
-    this.tick();
+    // 空放惩罚：气不够还按技能（防"无脑扔镖"退化策略）
+    let wasted = 0;
+    for (const a of combo) {
+      const cost = SKILL_COSTS[a];
+      if (cost !== undefined && kiBefore < cost) wasted += 0.1;
+    }
 
-    // —— 奖励 ——
+    // —— 奖励（四分项：伤害 / combo / 击杀 / 生存；受到伤害重罚） ——
     const enemyHp = this.enemyTotalHp();
-    const dealt = Math.max(0, this.prevEnemyTotalHp - enemyHp);
-    const taken = Math.max(0, this.prevPlayerHp - this.player.hp);
+    const dealt = Math.max(0, this.prevEnemyTotalHp - enemyHp);   // ① 造成伤害
+    const taken = Math.max(0, this.prevPlayerHp - this.player.hp); // 承受伤害
     const dist = this.nearestEnemyDist();
-    const approach = this.prevDist - dist; // >0 表示拉近了
+    const approach = this.prevDist - dist;
 
-    let reward = dealt * 0.6 - taken * 0.6 + approach * 0.01 - 0.01;
+    // ② combo：12 步窗口（≈0.8 秒）累计伤害 ≥15，持续期间每步 +0.3
+    this.recentDmg.push(dealt);
+    if (this.recentDmg.length > 12) this.recentDmg.shift();
+    const windowDmg = this.recentDmg.reduce((s, d) => s + d, 0);
+    const comboBonus = windowDmg >= 15 ? 0.3 : 0;
+    this.comboPeak = Math.max(this.comboPeak, windowDmg);
+
     const enemiesAlive = this.world.enemies.length;
+    const killsNow = Math.max(0, this.prevEnemiesAlive - enemiesAlive);
+    this.totalKills += killsNow;                                     // ③ 击杀
+
+    // 奖励权重：Boss 战需要强进攻引导（否则收敛到"全场遛狗不输出"的和平主义）
+    const W =
+      this.scenario === 'boss'
+        ? { dealt: 1.5, taken: 0.5, kill: 50, farPenalty: 0.05 }
+        : { dealt: 0.5, taken: 1.0, kill: 3, farPenalty: 0 };
+
+    // ④ 生存：不设过程奖励（每帧给分=鼓励挂机），只在通关时按剩余血量给分
+    let reward =
+      dealt * W.dealt +     // ① 伤害
+      comboBonus +           // ② combo
+      killsNow * W.kill +    // ③ 击杀
+      approach * 0.01 -      // 逼近引导
+      taken * W.taken -      // 受到伤害
+      (dist > 100 ? W.farPenalty : 0) - // Boss 战远离惩罚（反遛狗）
+      wasted;                // 空放技能
     let done = false;
 
     if (this.player.state === 'dead') {
       reward -= 15;
       done = true;
     } else if (enemiesAlive === 0) {
-      reward += 25;
-      done = true;
-    } else if (this.t >= MAX_TICKS) {
+      if (this.scenario === 'waves') {
+        if (this.waveIdx < 3) {
+          reward += 15;
+          this.spawnWave(this.waveIdx + 1);
+          this.prevEnemyTotalHp = this.enemyTotalHp();
+        } else {
+          reward += 40 + this.player.hp * 0.1; // 通关 + 剩余血量加成（生存能力给分）
+          done = true;
+        }
+      } else {
+        reward += 25 + this.player.hp * 0.1;
+        done = true;
+      }
+    } else if (this.t >= maxTicks(this.scenario)) {
       reward -= 5;
       done = true;
     }
 
     this.prevPlayerHp = this.player.hp;
-    this.prevEnemyTotalHp = enemyHp;
+    this.prevEnemyTotalHp = this.enemyTotalHp();
+    this.prevEnemiesAlive = enemiesAlive;
     this.prevDist = dist;
 
     return {
       obs: this.observe(),
       reward,
       done,
-      info: { t: this.t, playerHp: this.player.hp, enemyHp, enemiesAlive },
+      info: {
+        t: this.t, playerHp: this.player.hp, enemyHp, enemiesAlive, wave: this.waveIdx,
+        kills: this.totalKills, comboPeak: this.comboPeak, takenCum: 100 - this.player.hp,
+      },
     };
   }
 
