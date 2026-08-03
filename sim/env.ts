@@ -279,7 +279,7 @@ export class GameEnv {
       ? kiDelta * 0.02                         // 回气：+0.02/气
       : hitThisStep
         ? -kiDelta * 0.02                      // 耗气且命中：净奖励（鼓励用气换伤害）
-        : kiDelta * 0.025;                     // 耗气未命中：-0.025/气（惩罚减半）
+        : kiDelta * 0.1;                       // 耗气未命中：-0.1/气（狠罚空大，抑制 spam）
 
     let reward =
       dealtReward +          // ① 输出伤害（分来源）
