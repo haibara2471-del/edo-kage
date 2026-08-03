@@ -12,6 +12,7 @@ import { reseed } from './rng';
 import { reportRun, fetchRun } from './report';
 import { ReplayInput } from './replay';
 import { getPlayerName, setPlayerName } from './identity';
+import { AiInput } from './ai';
 import type { World } from './world';
 
 const VIEW_W = 960;
@@ -59,6 +60,7 @@ reseed(seed);
 let reported = false;
 let deathDelay = -1;
 let debugUsed = false; // 开过「禅」/传送/清场的局不上报（作弊局无统计价值）
+let aiPlay = false;    // alibaba 观战模式（AI 代打，不上报）
 
 let playerName = getPlayerName();
 let nameBuf = '';
@@ -155,14 +157,23 @@ window.addEventListener('keydown', (e) => {
 });
 
 function tick(): void {
-  input.tick();
+  world.input.tick();
   frameCount++;
   if (zenFlash > 0) zenFlash--;
 
   if (mode === 'loading') return;
 
   if (mode === 'title') {
-    if (title.update(input)) mode = 'play';
+    if (title.update(input)) {
+      // 忍名 alibaba → AI 代打观战模式
+      if (playerName.trim().toLowerCase() === 'alibaba') {
+        const ai = new AiInput(world);
+        void ai.init('models/ppo_waves.onnx');
+        world.input = ai;
+        aiPlay = true;
+      }
+      mode = 'play';
+    }
     return;
   }
 
@@ -230,8 +241,8 @@ function tick(): void {
   waves.update(world);
   effects.update();
 
-  // 每局结束时上报一次（通关 / 死亡 1.5 秒后；作弊局与回放不上报）
-  if (!reported && !debugUsed && !replayInfo) {
+  // 每局结束时上报一次（通关 / 死亡 1.5 秒后；作弊局、回放、AI 代打不上报）
+  if (!reported && !debugUsed && !replayInfo && !aiPlay) {
     const env: 'local' | 'prod' = location.hostname === 'localhost' ? 'local' : 'prod';
     if (waves.done) {
       reported = true;
@@ -336,6 +347,14 @@ function render(): void {
       `回放 #${replayInfo.id} · ${replayInfo.result === 'clear' ? '通关' : '阵亡'} · 第${replayInfo.wave}波`,
       VIEW_W / 2, 76,
     );
+  }
+
+  // AI 代打横幅
+  if (aiPlay) {
+    ctx.fillStyle = '#9fd8ff';
+    ctx.font = 'bold 13px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('AI 代打中 · alibaba', VIEW_W / 2, 76);
   }
 
   // 「禅」无敌指示：常驻小金印 + 触发时大字闪现
