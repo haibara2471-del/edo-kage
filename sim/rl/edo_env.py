@@ -7,7 +7,7 @@ import gymnasium as gym
 from gymnasium import spaces
 from stable_baselines3.common.vec_env import VecEnv
 
-SERVER = "http://127.0.0.1:8787"
+SERVER = f"http://127.0.0.1:{os.environ.get('EDO_RL_PORT', '8787')}"
 
 
 class EdoEnv(gym.Env):

@@ -34,7 +34,7 @@ const ACTIONS: string[][] = [
   ['left', 'attack'], ['right', 'attack'], ['left', 'jump'], ['right', 'jump'],
 ];
 
-type ScenarioKey = 'ashigaru' | 'wave1' | 'mixed' | 'air' | 'wave2' | 'boss' | 'bossSquad';
+type ScenarioKey = 'ashigaru' | 'wave1' | 'mixed' | 'air' | 'wave2' | 'waves' | 'boss' | 'bossSquad';
 
 const SCENARIOS: Record<ScenarioKey, { label: string; spawn: (w: World, stage: Stage, px: number) => void; maxT: number }> = {
   ashigaru: {
@@ -76,6 +76,11 @@ const SCENARIOS: Record<ScenarioKey, { label: string; spawn: (w: World, stage: S
       w.enemies.push(new HookSoldier(px + 380, stage.groundY - 34));
     },
   },
+  waves: {
+    label: '完整三波（训练目标场景）',
+    maxT: 5400,
+    spawn: (w, stage, px) => { spawnWave(w, 1, px); },
+  },
   boss: {
     label: 'Boss 单',
     maxT: 7200,
@@ -113,6 +118,26 @@ class Driver {
       if (act === 'left' || act === 'right') this.held.add(act);
       else this.buffer.push({ action: act, frame: this.frame });
     }
+  }
+}
+
+function spawnWave(w: World, idx: number, px: number): void {
+  const gy = w.stage.groundY;
+  const E = w.enemies;
+  const both = (i: number): number => px + (i % 2 === 0 ? -1 : 1) * (400 + i * 80);
+  if (idx === 1) {
+    for (let i = 0; i < 3; i++) E.push(Enemy.ashigaru(both(i), gy));
+  } else if (idx === 2) {
+    for (let i = 0; i < 3; i++) E.push(Enemy.ashigaru(both(i), gy));
+    E.push(new Flyer(px - 240, gy - 220, 'crow'));
+    E.push(new Archer(px + 300, gy - 34));
+    E.push(new HookSoldier(px + 380, gy - 34));
+  } else if (idx === 3) {
+    for (let i = 0; i < 2; i++) E.push(Enemy.ashigaru(both(i), gy));
+    E.push(new Flyer(px + 220, gy - 160, 'bat'));
+    E.push(new Archer(px - 320, gy - 34));
+    E.push(new Bruiser(px + 260, gy - 46));
+    E.push(new Shaman(px + 400, gy - 32));
   }
 }
 
@@ -183,6 +208,8 @@ async function runEpisode(
   let idleFrames = 0;
   let lastX = player.centerX;
   let lastMoveFrame = 0;
+  let waveIdx = 1;
+  let advanceTarget = -1;
 
   for (let f = 0; f < SCENARIOS[key].maxT; f++) {
     driver.tick();
@@ -195,6 +222,18 @@ async function runEpisode(
       actionCounts[a] = (actionCounts[a] ?? 0) + 1;
     }
     step(world);
+
+    // waves 场景：清波后需向右推进 260px 才刷下一波
+    if (key === 'waves') {
+      if (world.enemies.length === 0 && waveIdx < 3 && advanceTarget < 0) {
+        advanceTarget = player.centerX + 260;
+      }
+      if (advanceTarget > 0 && player.centerX >= advanceTarget) {
+        advanceTarget = -1;
+        waveIdx++;
+        spawnWave(world, waveIdx, player.centerX);
+      }
+    }
 
     if (Math.abs(player.centerX - lastX) > 2) {
       lastX = player.centerX;
@@ -219,7 +258,7 @@ async function runEpisode(
         idleFrames,
       };
     }
-    if (world.enemies.length === 0) {
+    if (world.enemies.length === 0 && (key !== 'waves' || waveIdx >= 3)) {
       return { win: true, ticks: f, playerHp: player.hp, deathBy: '-', deathX: player.centerX, actionCounts, idleFrames };
     }
   }

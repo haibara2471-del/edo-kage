@@ -7,7 +7,7 @@
 import { createServer } from 'node:http';
 import { GameEnv, type Scenario } from './env';
 
-const PORT = 8787;
+const PORT = Number(process.env.EDO_RL_PORT ?? '8787');
 const envs = new Map<string, GameEnv>();
 
 function readBody(req: import('node:http').IncomingMessage): Promise<string> {

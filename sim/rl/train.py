@@ -14,17 +14,28 @@ from edo_env import EdoEnv, BatchVecEnv
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import EvalCallback
 
+from stable_baselines3.common.vec_env import VecNormalize
+
 SCENARIO = sys.argv[1] if len(sys.argv) > 1 else "ashigaru"
 TOTAL_STEPS = int(sys.argv[2]) if len(sys.argv) > 2 else 500_000
 RESUME = "resume" in sys.argv
 INIT = next((a.split("=", 1)[1] for a in sys.argv if a.startswith("init=")), None)
-N_ENVS = 16      # 并行局数（同一批 rollout 收集自 16 局同时进行的游戏）
-N_STEPS = 256    # 每局每轮收集步数 → 一批 rollout = 16×256 = 4096
-BATCH_SIZE = 2048  # 梯度 minibatch（一批 rollout 切 2 块，学习更稳）
+N_ENVS = 16
+N_STEPS = 2048   # 覆盖完整 episode（waves 最长 1350 步）
+BATCH_SIZE = 512
+GAMMA = 0.995
+GAE_LAMBDA = 0.95
+LEARNING_RATE = 1e-4
+ENT_COEF = 0.05  # 提高熵，打破 spam 局部最优
+POLICY_KWARGS = dict(net_arch=[512, 512])
 
 
 def main():
-    env = BatchVecEnv(scenario=SCENARIO, n_envs=N_ENVS)
+    env = VecNormalize(
+        BatchVecEnv(scenario=SCENARIO, n_envs=N_ENVS),
+        norm_obs=False,
+        norm_reward=True,
+    )
     eval_env = EdoEnv(scenario=SCENARIO, session="evalcb")
 
     eval_cb = EvalCallback(
@@ -38,10 +49,17 @@ def main():
     )
 
     model_path = Path(f"ppo_{SCENARIO}.zip")
+    vec_path = Path(f"ppo_{SCENARIO}_vecnormalize.pkl")
+    init_vec_path = Path(f"{INIT}_vecnormalize.pkl") if INIT else None
+
     if INIT and Path(f"{INIT}.zip").exists():
+        if init_vec_path and init_vec_path.exists():
+            env = VecNormalize.load(str(init_vec_path), env)
         model = PPO.load(f"{INIT}.zip", env=env, device="cpu")
         print(f"迁移初始化 {INIT}.zip")
     elif RESUME and model_path.exists():
+        if vec_path.exists():
+            env = VecNormalize.load(str(vec_path), env)
         model = PPO.load(str(model_path), env=env, device="cpu")
         print(f"续训 {model_path}")
     else:
@@ -51,14 +69,18 @@ def main():
             device="cpu",
             n_steps=N_STEPS,
             batch_size=BATCH_SIZE,
-            learning_rate=3e-4,
-            ent_coef=0.05,
+            gamma=GAMMA,
+            gae_lambda=GAE_LAMBDA,
+            learning_rate=LEARNING_RATE,
+            ent_coef=ENT_COEF,
+            policy_kwargs=POLICY_KWARGS,
             verbose=1,
         )
 
     t0 = time.time()
     model.learn(total_timesteps=TOTAL_STEPS, callback=eval_cb)
     model.save(f"ppo_{SCENARIO}")
+    env.save(f"ppo_{SCENARIO}_vecnormalize.pkl")
     print(f"完成 {model.num_timesteps} 步，用时 {time.time()-t0:.0f}s，最佳模型 best_model.zip / 最终 ppo_{SCENARIO}.zip")
 
 

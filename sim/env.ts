@@ -276,6 +276,9 @@ export class GameEnv {
     const kiDelta = kiNow - this.prevKi; // 正=回气 负=耗气
     const kiReward = kiDelta > 0 ? kiDelta * 0.02 : kiDelta * 0.1; // 回气+0.02/气，耗气-0.1/气
 
+    // ⑧ 活跃惩罚：场上有敌人但最近 12 步（~0.8s）完全没输出 → 额外扣，打破站原地 spam 局部最优
+    const inactivityPenalty = (enemiesAlive > 0 && windowDmg < 0.1) ? -0.03 : 0;
+
     let reward =
       dealtReward +          // ① 输出伤害（分来源）
       killsNow * 2 -         // ③ 击杀
@@ -283,7 +286,8 @@ export class GameEnv {
       wasHit * 0.3 -         // ④ 被控制次数
       - 0.01 * frames +       // ⑤ 通关速度（大幅提惩罚，逼 AI 必须找正回报）
       comboBonus +           // ⑥ combo 多样性
-      kiReward;              // ⑦ 气经济
+      kiReward +             // ⑦ 气经济
+      inactivityPenalty;     // ⑧ 活跃惩罚
     let done = false;
 
     if (this.player.state === 'dead') {
@@ -442,6 +446,16 @@ export class GameEnv {
       np ? Math.max(-1, Math.min(1, (np.x - p.centerX) / 300)) : 0,
       np ? Math.max(-1, Math.min(1, (np.y - p.centerY) / 300)) : 0,
     );
+
+    // 战场态势（7 维，替代原 padding）：只给信息，不给方向性奖励
+    const enemiesLeft = w.enemies.some((e) => !e.dead && e.centerX < p.centerX) ? 1 : 0;
+    const enemiesRight = w.enemies.some((e) => !e.dead && e.centerX >= p.centerX) ? 1 : 0;
+    const airCount = Math.min(5, w.enemies.filter((e) => !e.dead && e.centerY < p.centerY - 80).length) / 5;
+    const remaining = Math.min(10, w.enemies.length) / 10;
+    const wave = this.scenario === 'waves' ? this.waveIdx / 3 : 0;
+    const advance = this.advanceTarget > 0 ? (this.advanceTarget - p.centerX) / 1000 : -1;
+    const nearestDist = Math.min(1000, this.nearestEnemyDist()) / 1000;
+    obs.push(remaining, wave, enemiesLeft, enemiesRight, airCount, nearestDist, advance);
 
     while (obs.length < OBS_SIZE) obs.push(0);
     return obs.slice(0, OBS_SIZE);

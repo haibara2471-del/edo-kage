@@ -90,6 +90,20 @@ export function buildObs(w: World): Float32Array {
     np ? Math.max(-1, Math.min(1, (np.y - p.centerY) / 300)) : 0,
   );
 
+  // 战场态势（7 维，与 sim/env.ts 对齐）
+  const enemiesLeft = w.enemies.some((e) => !e.dead && e.centerX < p.centerX) ? 1 : 0;
+  const enemiesRight = w.enemies.some((e) => !e.dead && e.centerX >= p.centerX) ? 1 : 0;
+  const airCount = Math.min(5, w.enemies.filter((e) => !e.dead && e.centerY < p.centerY - 80).length) / 5;
+  const remaining = Math.min(10, w.enemies.length) / 10;
+  // 浏览器端没有 wave/advance 状态，填 0；训练环境会填入真实值
+  const wave = 0;
+  const advance = -1;
+  let nearestDist = 1;
+  for (const e of w.enemies) {
+    if (!e.dead) nearestDist = Math.min(nearestDist, Math.abs(e.centerX - p.centerX) / 1000);
+  }
+  obs.push(remaining, wave, enemiesLeft, enemiesRight, airCount, nearestDist, advance);
+
   while (obs.length < OBS_SIZE) obs.push(0);
   return new Float32Array(obs.slice(0, OBS_SIZE));
 }
