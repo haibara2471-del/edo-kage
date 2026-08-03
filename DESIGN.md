@@ -271,7 +271,8 @@
   - **300 万步并行实验结果**：
     - 主支 1+2+3：EV 一度 0.9+ 但 eval episode length 仍是 1350（timeout），ai-analyze 上 waves 0/10 timeout，wave1 0/10 timeout——模型塌缩为 spam 手里剑 + 站着不动
     - 稀疏奖励：EV 后期变负，表现比主支还差，全场景几乎 0%
-  - **结论**：纯从 scratch + 当前 dense/sparse reward + PPO 网络/超参调整，**仍无法让模型学会主动移动/接敌**。需要引入外部先验（ppo_wave1 迁移初始化）才能继续推进
+  - **结论**：纯从 scratch + 当前 dense/sparse reward + PPO 网络/超参调整，**仍无法让模型学会主动移动/接敌**。根因是 reward 让「站原地 spam 手里剑」成为局部最优
+  - **Reward 再调**：刀 0.5 不变、技能/手里剑 0.3、耗气惩罚从 -0.1 提到 -0.2/气，逼 AI 必须近战
 
 ## 10. TODO / backlog
 

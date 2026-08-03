@@ -251,7 +251,7 @@ export class GameEnv {
       if (h.src === 'blade') bladeDmg += h.dmg;
       else skillDmg += h.dmg;
     }
-    dealtReward = bladeDmg * 0.5 + skillDmg * 0.4; // 平A×0.5 / 技能×0.4（combo 多样性成为主要动力）
+    dealtReward = bladeDmg * 0.5 + skillDmg * 0.3; // 平A×0.5 / 技能×0.3（逼近战，combo 里技能仍可用）
     this.world.lastHits = [];
 
     // ⑥ combo 多样性：最近 12 步（0.8s）内由 ≥2 种不同来源造成的累计伤害 ≥10
@@ -274,7 +274,7 @@ export class GameEnv {
     // ⑦ 气经济：回气奖励，耗气惩罚（与命中脱钩，命中奖励由 dealtReward 单独给）
     const kiNow = this.player.ki;
     const kiDelta = kiNow - this.prevKi; // 正=回气 负=耗气
-    const kiReward = kiDelta > 0 ? kiDelta * 0.02 : kiDelta * 0.1; // 回气+0.02/气，耗气-0.1/气
+    const kiReward = kiDelta > 0 ? kiDelta * 0.02 : kiDelta * 0.2; // 回气+0.02/气，耗气-0.2/气（spam 成本提高）
 
     // ⑧ 活跃惩罚：场上有敌人但最近 12 步（~0.8s）完全没输出 → 额外扣，打破站原地 spam 局部最优
     const inactivityPenalty = (enemiesAlive > 0 && windowDmg < 0.1) ? -0.03 : 0;
