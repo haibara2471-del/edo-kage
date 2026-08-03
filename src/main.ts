@@ -47,6 +47,7 @@ const world: World = {
   clouds: [],
   codex,
   camX: 0,
+  lastHits: [],
 };
 
 type Mode = 'title' | 'play' | 'codex' | 'loading';

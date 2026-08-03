@@ -17,7 +17,7 @@ import { resolveCombat } from '../src/combat';
 import { reseed } from '../src/rng';
 import type { World } from '../src/world';
 
-export type Scenario = 'ashigaru' | 'wave1' | 'waves' | 'boss' | 'bossEasy';
+export type Scenario = 'ashigaru' | 'wave1' | 'waves' | 'boss' | 'bossEasy' | 'flyers' | 'bossSquad' | 'shurikenOnly';
 
 /** 直接注入式输入（每帧可设置按住集合 + 点按） */
 class EnvInput {
@@ -75,14 +75,6 @@ export const ACTIONS: string[][] = [
 
 const OBS_SIZE = 42;
 
-/** 技能气耗（与 player.ts 一致），用于空放惩罚 */
-const SKILL_COSTS: Record<string, number> = {
-  shuriken: 10,
-  skillU: 10,
-  skillH: 20,
-  skillO: 25,
-};
-
 function maxTicks(scenario: Scenario): number {
   switch (scenario) {
     case 'ashigaru': return 1800;
@@ -90,6 +82,9 @@ function maxTicks(scenario: Scenario): number {
     case 'waves': return 5400;
     case 'boss': return 7200; // Boss 战放宽（谨慎风格也需要时间磨 200 血）
     case 'bossEasy': return 5400;
+    case 'flyers': return 3000;
+    case 'bossSquad': return 7200;
+    case 'shurikenOnly': return 2400;
   }
 }
 
@@ -109,7 +104,11 @@ export class GameEnv {
   private prevEnemiesAlive = 0;
   private prevDist = 0;
   private totalKills = 0;
+  private hitCount = 0;
+  private prevState = '';
+  private prevKi = 0;
   private recentDmg: number[] = []; // 最近 45 帧内每帧造成的伤害（combo 计量）
+  private recentSrc: string[] = []; // 最近伤害来源（combo 多样性计量）
   private comboPeak = 0;
 
   constructor(private scenario: Scenario) {}
@@ -134,6 +133,7 @@ export class GameEnv {
       clouds: [],
       codex: new Codex(),
       camX: 0,
+      lastHits: [],
     };
     this.world = world;
 
@@ -150,17 +150,39 @@ export class GameEnv {
     } else if (this.scenario === 'bossEasy') {
       // 课程弱化版：100 血 / 残像 12% / 无二阶段
       world.enemies.push(new Boss(this.player.x + 90, stage.groundY - 40, { hp: 100, dodge: 0.12, noPhase2: true }));
+    } else if (this.scenario === 'flyers') {
+      // 专项：纯飞行局（补短板：打乌鸦）
+      world.enemies.push(new Flyer(this.player.x - 180, stage.groundY - 220, 'crow'));
+      world.enemies.push(new Flyer(this.player.x + 180, stage.groundY - 220, 'crow'));
+      world.enemies.push(new Flyer(this.player.x, stage.groundY - 200, 'bat'));
+    } else if (this.scenario === 'bossSquad') {
+      // 专项：真 Boss 团战（Boss + 双钩使）
+      const cx = 2530;
+      world.enemies.push(new Boss(cx + 100, stage.groundY - 40));
+      world.enemies.push(new HookSoldier(cx - 120, stage.groundY - 34));
+      world.enemies.push(new HookSoldier(cx + 220, stage.groundY - 34));
+      this.player.x = 2370;
+      this.player.y = 300;
+    } else if (this.scenario === 'shurikenOnly') {
+      // 专项：纯镖打鸟（逼它学会用手里剑对空）
+      world.enemies.push(new Flyer(this.player.x - 160, stage.groundY - 220, 'crow', { passive: true }));
+      world.enemies.push(new Flyer(this.player.x + 160, stage.groundY - 220, 'crow', { passive: true }));
+      // 不刷近战怪，逼它必须用镖
     }
 
     this.t = 0;
     this.advanceTarget = -1;
     this.prevCx = this.player.centerX;
     this.prevPlayerHp = this.player.hp;
+    this.prevKi = this.player.ki;
     this.prevEnemyTotalHp = this.enemyTotalHp();
     this.prevEnemiesAlive = world.enemies.length;
     this.prevDist = this.nearestEnemyDist();
     this.totalKills = 0;
+    this.hitCount = 0;
+    this.prevState = this.player.state;
     this.recentDmg = [];
+    this.recentSrc = [];
     this.comboPeak = 0;
     return this.observe();
   }
@@ -192,7 +214,6 @@ export class GameEnv {
   step(actionIdx: number): { obs: number[]; reward: number; done: boolean; info: Record<string, number> } {
     const input = this.input;
     const combo = ACTIONS[actionIdx] ?? [];
-    const kiBefore = this.player.ki;
 
     // 帧跳跃：一般场景 4 帧/步（15Hz）；Boss 战 2 帧/步（30Hz，残像/连招需要更细的反应粒度）
     const frames = this.scenario === 'boss' ? 2 : 4;
@@ -211,54 +232,63 @@ export class GameEnv {
       if (this.player.state === 'dead') break;
     }
 
-    // 空放惩罚：气不够还按技能（防"无脑扔镖"退化策略）
-    let wasted = 0;
-    for (const a of combo) {
-      const cost = SKILL_COSTS[a];
-      if (cost !== undefined && kiBefore < cost) wasted += 0.05;
-    }
-
-    // —— 归一化奖励（单局回报量级 O(10)，冻结后不再调整） ——
+    // —— 通用 Reward（6 项，只衡量打得怎么样，不管打的是谁） ——
     const enemyHp = this.enemyTotalHp();
-    const dealt = Math.max(0, this.prevEnemyTotalHp - enemyHp);   // ① 造成伤害
-    const taken = Math.max(0, this.prevPlayerHp - this.player.hp); // 承受伤害
+    const dealt = Math.max(0, this.prevEnemyTotalHp - enemyHp);   // ① 输出伤害
+    const taken = Math.max(0, this.prevPlayerHp - this.player.hp); // ② 承受伤害
     const dist = this.nearestEnemyDist();
-    const approach = this.prevDist - dist;
 
-    // ② combo：12 步窗口（≈0.8 秒）内持续命中伤害 ≥15，期间每步 +0.05
+    // ⑥ 单位时间输出（combo）：最近 12 步（0.8s）命中伤害 ≥15 持续给
     this.recentDmg.push(dealt);
     if (this.recentDmg.length > 12) this.recentDmg.shift();
+
+    // ① 输出伤害：分来源系数（技能溢价，鼓励有气时用技能）
+    const hits = this.world.lastHits;
+    let dealtReward = 0;
+    let bladeDmg = 0;
+    let skillDmg = 0;
+    for (const h of hits) {
+      if (h.src === 'blade') bladeDmg += h.dmg;
+      else skillDmg += h.dmg;
+    }
+    dealtReward = bladeDmg * 0.2 + skillDmg * 0.6; // 平A×0.2 / 技能×0.6
+    this.world.lastHits = [];
+
+    // ⑥ combo 多样性：最近 12 步（0.8s）内由 ≥2 种不同来源造成的累计伤害 ≥10
+    const srcWindow = this.recentSrc;
+    for (const h of hits) srcWindow.push(h.src);
+    if (srcWindow.length > 36) srcWindow.splice(0, srcWindow.length - 36); // 约 12 步
+    const srcSet = new Set(srcWindow);
     const windowDmg = this.recentDmg.reduce((s, d) => s + d, 0);
-    const comboBonus = windowDmg >= 15 ? 0.05 : 0;
+    const comboBonus = srcSet.size >= 2 && windowDmg >= 10 ? 0.1 : 0;
     this.comboPeak = Math.max(this.comboPeak, windowDmg);
 
     const enemiesAlive = this.world.enemies.length;
     const killsNow = Math.max(0, this.prevEnemiesAlive - enemiesAlive);
-    this.totalKills += killsNow;                                     // ③ 击杀
+    this.totalKills += killsNow;                                     // ③ 击杀（杀谁都行）
 
-    // Boss 血量里程碑：每打掉 50 血 +2
-    let milestone = 0;
-    if (this.scenario === 'boss' || this.scenario === 'bossEasy') {
-      const before = Math.floor(this.prevEnemyTotalHp / 50);
-      const after = Math.floor(enemyHp / 50);
-      milestone = Math.max(0, before - after) * 2;
-    }
+    // ④ 被控制次数：进入 hit 硬直状态（受击/击退/被钩拉）
+    const wasHit = this.prevState !== 'hit' && this.player.state === 'hit' ? 1 : 0;
+    this.hitCount += wasHit;
 
-    const W =
-      this.scenario === 'boss' || this.scenario === 'bossEasy'
-        ? { dealt: 0.3, taken: 0.15, kill: 10, farPenalty: 0.01 }
-        : { dealt: 0.3, taken: 0.1, kill: 2, farPenalty: 0 };
+    // ⑦ 气经济：回气奖励；耗气命中鼓励；耗气未命中轻罚（惩罚减半，鼓励探索）
+    const kiNow = this.player.ki;
+    const kiDelta = kiNow - this.prevKi; // 正=回气 负=耗气
+    const hitThisStep = dealtReward > 0;
+    const kiReward = kiDelta > 0
+      ? kiDelta * 0.02                         // 回气：+0.02/气
+      : hitThisStep
+        ? -kiDelta * 0.02                      // 耗气且命中：净奖励（鼓励用气换伤害）
+        : kiDelta * 0.025;                     // 耗气未命中：-0.025/气（惩罚减半）
 
     let reward =
-      dealt * W.dealt +      // ① 伤害
-      comboBonus +           // ② combo（单位时间持续命中）
-      killsNow * W.kill +    // ③ 击杀
-      milestone +            // Boss 血量里程碑
-      approach * 0.01 -      // 逼近引导
-      taken * W.taken -      // 受到伤害
-      (dist > 100 ? W.farPenalty : 0) - // Boss 战远离惩罚
-      wasted -               // 空放技能
-      0.001 * frames;        // 时间成本
+      dealtReward +          // ① 输出伤害（分来源）
+      killsNow * 2 -         // ③ 击杀
+      taken * 0.15 -         // ② 承受伤害
+      wasHit * 0.3 -         // ④ 被控制次数
+      0.001 * frames +       // ⑤ 通关速度
+      comboBonus +           // ⑥ combo 多样性
+      kiReward;              // ⑦ 气经济
     let done = false;
 
     if (this.player.state === 'dead') {
@@ -267,17 +297,14 @@ export class GameEnv {
     } else if (enemiesAlive === 0) {
       if (this.scenario === 'waves') {
         if (this.waveIdx < 3) {
-          // 清波奖励只在刚清完的那一刻给一次（否则变成无敌挂机农场）
-          if (this.advanceTarget < 0) {
-            reward += 5;
-            this.advanceTarget = this.player.centerX + 260;
-          }
+          // 清波后要求向右推进触发下一波（环境构成，与 reward 无关）
+          this.advanceTarget = this.player.centerX + 260;
         } else {
-          reward += 10 + this.player.hp * 0.02; // 通关 + 剩余血量加成
+          reward += 5 + this.player.hp * 0.02; // 通关 + 剩余血量加成
           done = true;
         }
       } else {
-        reward += 10 + this.player.hp * 0.02;
+        reward += 5 + this.player.hp * 0.02;
         done = true;
       }
     } else if (this.t >= maxTicks(this.scenario)) {
@@ -285,10 +312,8 @@ export class GameEnv {
       done = true;
     }
 
-    // waves 推进阶段：向右走给进度奖励，到达即刷下一波
+    // waves 推进阶段（环境构成）：到达即刷下一波
     if (!done && this.scenario === 'waves' && this.advanceTarget > 0) {
-      const progress = this.player.centerX - this.prevCx;
-      if (progress > 0) reward += progress * 0.05;
       if (this.player.centerX >= this.advanceTarget) {
         this.advanceTarget = -1;
         this.spawnWave(this.waveIdx + 1);
@@ -296,8 +321,10 @@ export class GameEnv {
       }
     }
     this.prevCx = this.player.centerX;
+    this.prevState = this.player.state;
 
     this.prevPlayerHp = this.player.hp;
+    this.prevKi = this.player.ki;
     this.prevEnemyTotalHp = this.enemyTotalHp();
     this.prevEnemiesAlive = enemiesAlive;
     this.prevDist = dist;
@@ -356,6 +383,10 @@ export class GameEnv {
       p.hp / 100, p.ki / 100, p.facing, p.onGround ? 1 : 0,
       p.dashCd / 45, p.poisonTimer / 120,
       w.projectiles.length / 6, w.arrows.length / 6, w.orbs.length,
+      p.ki >= 10 ? 1 : 0,  // 气足够扔镖（对空 affordance）
+      0,                    // 14: 头顶有敌人标志（下面填）
+      0,                    // 15: 最近敌人在近战/技能可达范围（下面填）
+      0,                    // 16: 最近敌人在手里剑扇形可达范围（下面填）
     ];
 
     // 最近 3 个敌人：[相对x, 相对y, 血量比, 类型码, 状态码] × 3
@@ -367,8 +398,23 @@ export class GameEnv {
     const sorted = [...w.enemies]
       .filter((e) => !e.dead)
       .sort((a, b) => Math.abs(a.centerX - p.centerX) - Math.abs(b.centerX - p.centerX))
-      .slice(0, 3);
-    for (let i = 0; i < 3; i++) {
+      .slice(0, 2);
+    const nearest = sorted[0];
+    const airborne = sorted.some((e) => e.centerY < p.centerY - 80) ? 1 : 0;
+    obs[14] = airborne; // 头顶有敌人（高度差 >80px，需要远程/跳跃）
+
+    // Affordance：帮助策略把“位置对齐”转化为“出手”，只描述几何可达性
+    if (nearest) {
+      const dx = nearest.centerX - p.centerX;
+      const dy = nearest.centerY - p.centerY;
+      const inFront = dx * p.facing >= -5;
+      // 刀/昇月斬/朧乱舞综合可达：水平约 45px、纵向 -35~+40
+      obs[15] = (inFront && Math.abs(dx) <= 45 && dy >= -35 && dy <= 40) ? 1 : 0;
+      // 手里剑扇形可达：玩家前方中远距离、纵向从地面到高空
+      obs[16] = (dx * p.facing > 0 && Math.abs(dx) >= 20 && Math.abs(dx) <= 450 && dy >= -240 && dy <= 60) ? 1 : 0;
+    }
+    // 最近 2 个敌人 × 7 维：[相对x, 相对y, 血比, 类别, 状态, vx, vy, 面向]
+    for (let i = 0; i < 2; i++) {
       const e = sorted[i];
       if (e) {
         obs.push(
@@ -377,9 +423,12 @@ export class GameEnv {
           Math.max(0, (e as { hp?: number }).hp ?? 0) / ((e as { maxHp?: number }).maxHp ?? 100),
           typeCode(e.codexId) / 8,
           stateCode((e as { state?: string }).state ?? '') / 16,
+          Math.max(-1, Math.min(1, (e as { vx?: number }).vx ?? 0) / 5),
+          Math.max(-1, Math.min(1, (e as { vy?: number }).vy ?? 0) / 5),
+          (e as { facing?: number }).facing ?? 0,
         );
       } else {
-        obs.push(0, 0, 0, 0, 0);
+        obs.push(0, 0, 0, 0, 0, 0, 0);
       }
     }
 

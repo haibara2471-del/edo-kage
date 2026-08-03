@@ -73,6 +73,7 @@ function makeWorld(mode: 'level' | 'training' = 'level') {
     clouds: [],
     codex: new Codex(),
     camX: 0,
+    lastHits: [],
   };
   return { world, input, player, stage };
 }

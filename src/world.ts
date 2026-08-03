@@ -38,4 +38,6 @@ export interface World {
   clouds: PoisonCloud[];
   codex: Codex;
   camX: number;
+  /** 本帧各来源命中记录（RL 用：区分平A/技能伤害与连招多样性） */
+  lastHits: { src: string; dmg: number }[];
 }

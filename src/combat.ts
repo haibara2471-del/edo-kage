@@ -17,6 +17,10 @@ export function resolveCombat(w: World): void {
         const died = e.takeHit(spec.dmg, player.facing, spec.kbx, spec.kby, spec.hitstun);
         player.onHitConfirm(); // 命中回气
         codex.mark(e.codexId);
+        const src =
+          player.state === 'launcher' ? 'skillU' :
+          player.state === 'flurry' ? 'skillH' : 'blade';
+        w.lastHits.push({ src, dmg: spec.dmg });
         const cx = player.facing > 0 ? hb.x + hb.w : hb.x;
         effects.meleeHit(cx, e.centerY, spec.dmg, spec.heavy);
         if (died) effects.death(e.centerX, e.centerY);
@@ -33,6 +37,7 @@ export function resolveCombat(w: World): void {
         p.dead = true;
         const died = e.takeHit(p.dmg, Math.sign(p.vx), 1.5, 0, 8);
         codex.mark(e.codexId);
+        w.lastHits.push({ src: 'shuriken', dmg: p.dmg });
         effects.shurikenHit(p.x, p.y, p.dmg);
         if (died) effects.death(e.centerX, e.centerY);
         break;
@@ -73,6 +78,7 @@ export function explodeOrb(w: World, orb: WaterOrb): void {
     if (Math.abs(e.centerX - orb.x) < R + 14 && Math.abs(e.centerY - orb.y) < R) {
       const dir = Math.sign(e.centerX - orb.x) || 1;
       const died = e.takeHit(22, dir, 4, -3, 18);
+      w.lastHits.push({ src: 'skillO', dmg: 22 });
       w.codex.mark(e.codexId);
       if (died) w.effects.death(e.centerX, e.centerY);
     }

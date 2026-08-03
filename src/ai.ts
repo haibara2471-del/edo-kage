@@ -33,15 +33,31 @@ export function buildObs(w: World): Float32Array {
     p.hp / 100, p.ki / 100, p.facing, p.onGround ? 1 : 0,
     p.dashCd / 45, p.poisonTimer / 120,
     w.projectiles.length / 6, w.arrows.length / 6, w.orbs.length,
+    p.ki >= 10 ? 1 : 0,
+    0, // 14: airborne
+    0, // 15: inBladeReach
+    0, // 16: inShurikenReach
   ];
 
   const sorted = [...w.enemies]
     .filter((e) => !e.dead)
     .sort((a, b) => Math.abs(a.centerX - p.centerX) - Math.abs(b.centerX - p.centerX))
-    .slice(0, 3);
-  for (let i = 0; i < 3; i++) {
+    .slice(0, 2);
+  const nearest = sorted[0];
+  const airborne = sorted.some((e) => e.centerY < p.centerY - 80) ? 1 : 0;
+  obs[14] = airborne;
+
+  // Affordance 同步 env.ts：只描述几何可达性
+  if (nearest) {
+    const dx = nearest.centerX - p.centerX;
+    const dy = nearest.centerY - p.centerY;
+    const inFront = dx * p.facing >= -5;
+    obs[15] = (inFront && Math.abs(dx) <= 45 && dy >= -35 && dy <= 40) ? 1 : 0;
+    obs[16] = (dx * p.facing > 0 && Math.abs(dx) >= 20 && Math.abs(dx) <= 450 && dy >= -240 && dy <= 60) ? 1 : 0;
+  }
+  for (let i = 0; i < 2; i++) {
     const e = sorted[i] as
-      | { centerX: number; centerY: number; hp?: number; maxHp?: number; codexId: string; state?: string }
+      | { centerX: number; centerY: number; hp?: number; maxHp?: number; codexId: string; state?: string; vx?: number; vy?: number; facing?: number }
       | undefined;
     if (e) {
       obs.push(
@@ -50,9 +66,12 @@ export function buildObs(w: World): Float32Array {
         Math.max(0, e.hp ?? 0) / (e.maxHp ?? 100),
         typeCode(e.codexId) / 8,
         stateCode(e.state ?? '') / 16,
+        Math.max(-1, Math.min(1, (e.vx ?? 0) / 5)),
+        Math.max(-1, Math.min(1, (e.vy ?? 0) / 5)),
+        e.facing ?? 0,
       );
     } else {
-      obs.push(0, 0, 0, 0, 0);
+      obs.push(0, 0, 0, 0, 0, 0, 0);
     }
   }
 

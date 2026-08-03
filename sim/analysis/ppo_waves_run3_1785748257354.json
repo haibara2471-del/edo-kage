@@ -1,0 +1,1241 @@
+{
+  "ashigaru": [
+    {
+      "win": true,
+      "ticks": 129,
+      "playerHp": 90,
+      "deathBy": "-",
+      "deathX": 645.563560344225,
+      "actionCounts": {
+        "1": 15,
+        "2": 2,
+        "5": 2,
+        "6": 6,
+        "10": 8
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": true,
+      "ticks": 129,
+      "playerHp": 90,
+      "deathBy": "-",
+      "deathX": 645.563560344225,
+      "actionCounts": {
+        "1": 15,
+        "2": 2,
+        "5": 2,
+        "6": 6,
+        "10": 8
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": true,
+      "ticks": 129,
+      "playerHp": 90,
+      "deathBy": "-",
+      "deathX": 645.563560344225,
+      "actionCounts": {
+        "1": 15,
+        "2": 2,
+        "5": 2,
+        "6": 6,
+        "10": 8
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": true,
+      "ticks": 129,
+      "playerHp": 90,
+      "deathBy": "-",
+      "deathX": 645.563560344225,
+      "actionCounts": {
+        "1": 15,
+        "2": 2,
+        "5": 2,
+        "6": 6,
+        "10": 8
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": true,
+      "ticks": 129,
+      "playerHp": 90,
+      "deathBy": "-",
+      "deathX": 645.563560344225,
+      "actionCounts": {
+        "1": 15,
+        "2": 2,
+        "5": 2,
+        "6": 6,
+        "10": 8
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": true,
+      "ticks": 129,
+      "playerHp": 90,
+      "deathBy": "-",
+      "deathX": 645.563560344225,
+      "actionCounts": {
+        "1": 15,
+        "2": 2,
+        "5": 2,
+        "6": 6,
+        "10": 8
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": true,
+      "ticks": 129,
+      "playerHp": 90,
+      "deathBy": "-",
+      "deathX": 645.563560344225,
+      "actionCounts": {
+        "1": 15,
+        "2": 2,
+        "5": 2,
+        "6": 6,
+        "10": 8
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": true,
+      "ticks": 129,
+      "playerHp": 90,
+      "deathBy": "-",
+      "deathX": 645.563560344225,
+      "actionCounts": {
+        "1": 15,
+        "2": 2,
+        "5": 2,
+        "6": 6,
+        "10": 8
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": true,
+      "ticks": 129,
+      "playerHp": 90,
+      "deathBy": "-",
+      "deathX": 645.563560344225,
+      "actionCounts": {
+        "1": 15,
+        "2": 2,
+        "5": 2,
+        "6": 6,
+        "10": 8
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": true,
+      "ticks": 129,
+      "playerHp": 90,
+      "deathBy": "-",
+      "deathX": 645.563560344225,
+      "actionCounts": {
+        "1": 15,
+        "2": 2,
+        "5": 2,
+        "6": 6,
+        "10": 8
+      },
+      "idleFrames": 0
+    }
+  ],
+  "wave1": [
+    {
+      "win": true,
+      "ticks": 375,
+      "playerHp": 70,
+      "deathBy": "-",
+      "deathX": 677.0291396414772,
+      "actionCounts": {
+        "1": 27,
+        "2": 41,
+        "4": 6,
+        "5": 7,
+        "6": 5,
+        "10": 1,
+        "11": 7
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": true,
+      "ticks": 375,
+      "playerHp": 70,
+      "deathBy": "-",
+      "deathX": 677.0291396414772,
+      "actionCounts": {
+        "1": 27,
+        "2": 41,
+        "4": 6,
+        "5": 7,
+        "6": 5,
+        "10": 1,
+        "11": 7
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": true,
+      "ticks": 375,
+      "playerHp": 70,
+      "deathBy": "-",
+      "deathX": 677.0291396414772,
+      "actionCounts": {
+        "1": 27,
+        "2": 41,
+        "4": 6,
+        "5": 7,
+        "6": 5,
+        "10": 1,
+        "11": 7
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": true,
+      "ticks": 375,
+      "playerHp": 70,
+      "deathBy": "-",
+      "deathX": 677.0291396414772,
+      "actionCounts": {
+        "1": 27,
+        "2": 41,
+        "4": 6,
+        "5": 7,
+        "6": 5,
+        "10": 1,
+        "11": 7
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": true,
+      "ticks": 375,
+      "playerHp": 70,
+      "deathBy": "-",
+      "deathX": 677.0291396414772,
+      "actionCounts": {
+        "1": 27,
+        "2": 41,
+        "4": 6,
+        "5": 7,
+        "6": 5,
+        "10": 1,
+        "11": 7
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": true,
+      "ticks": 375,
+      "playerHp": 70,
+      "deathBy": "-",
+      "deathX": 677.0291396414772,
+      "actionCounts": {
+        "1": 27,
+        "2": 41,
+        "4": 6,
+        "5": 7,
+        "6": 5,
+        "10": 1,
+        "11": 7
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": true,
+      "ticks": 375,
+      "playerHp": 70,
+      "deathBy": "-",
+      "deathX": 677.0291396414772,
+      "actionCounts": {
+        "1": 27,
+        "2": 41,
+        "4": 6,
+        "5": 7,
+        "6": 5,
+        "10": 1,
+        "11": 7
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": true,
+      "ticks": 375,
+      "playerHp": 70,
+      "deathBy": "-",
+      "deathX": 677.0291396414772,
+      "actionCounts": {
+        "1": 27,
+        "2": 41,
+        "4": 6,
+        "5": 7,
+        "6": 5,
+        "10": 1,
+        "11": 7
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": true,
+      "ticks": 375,
+      "playerHp": 70,
+      "deathBy": "-",
+      "deathX": 677.0291396414772,
+      "actionCounts": {
+        "1": 27,
+        "2": 41,
+        "4": 6,
+        "5": 7,
+        "6": 5,
+        "10": 1,
+        "11": 7
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": true,
+      "ticks": 375,
+      "playerHp": 70,
+      "deathBy": "-",
+      "deathX": 677.0291396414772,
+      "actionCounts": {
+        "1": 27,
+        "2": 41,
+        "4": 6,
+        "5": 7,
+        "6": 5,
+        "10": 1,
+        "11": 7
+      },
+      "idleFrames": 0
+    }
+  ],
+  "mixed": [
+    {
+      "win": true,
+      "ticks": 517,
+      "playerHp": 64,
+      "deathBy": "-",
+      "deathX": 707.4107501819108,
+      "actionCounts": {
+        "0": 1,
+        "1": 7,
+        "2": 94,
+        "4": 4,
+        "5": 8,
+        "6": 4,
+        "11": 11,
+        "12": 1
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": true,
+      "ticks": 517,
+      "playerHp": 64,
+      "deathBy": "-",
+      "deathX": 707.4107501819108,
+      "actionCounts": {
+        "0": 1,
+        "1": 7,
+        "2": 94,
+        "4": 4,
+        "5": 8,
+        "6": 4,
+        "11": 11,
+        "12": 1
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": true,
+      "ticks": 517,
+      "playerHp": 64,
+      "deathBy": "-",
+      "deathX": 707.4107501819108,
+      "actionCounts": {
+        "0": 1,
+        "1": 7,
+        "2": 94,
+        "4": 4,
+        "5": 8,
+        "6": 4,
+        "11": 11,
+        "12": 1
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": true,
+      "ticks": 517,
+      "playerHp": 64,
+      "deathBy": "-",
+      "deathX": 707.4107501819108,
+      "actionCounts": {
+        "0": 1,
+        "1": 7,
+        "2": 94,
+        "4": 4,
+        "5": 8,
+        "6": 4,
+        "11": 11,
+        "12": 1
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": true,
+      "ticks": 517,
+      "playerHp": 64,
+      "deathBy": "-",
+      "deathX": 707.4107501819108,
+      "actionCounts": {
+        "0": 1,
+        "1": 7,
+        "2": 94,
+        "4": 4,
+        "5": 8,
+        "6": 4,
+        "11": 11,
+        "12": 1
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": true,
+      "ticks": 517,
+      "playerHp": 64,
+      "deathBy": "-",
+      "deathX": 707.4107501819108,
+      "actionCounts": {
+        "0": 1,
+        "1": 7,
+        "2": 94,
+        "4": 4,
+        "5": 8,
+        "6": 4,
+        "11": 11,
+        "12": 1
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": true,
+      "ticks": 517,
+      "playerHp": 64,
+      "deathBy": "-",
+      "deathX": 707.4107501819108,
+      "actionCounts": {
+        "0": 1,
+        "1": 7,
+        "2": 94,
+        "4": 4,
+        "5": 8,
+        "6": 4,
+        "11": 11,
+        "12": 1
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": true,
+      "ticks": 517,
+      "playerHp": 64,
+      "deathBy": "-",
+      "deathX": 707.4107501819108,
+      "actionCounts": {
+        "0": 1,
+        "1": 7,
+        "2": 94,
+        "4": 4,
+        "5": 8,
+        "6": 4,
+        "11": 11,
+        "12": 1
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": true,
+      "ticks": 517,
+      "playerHp": 64,
+      "deathBy": "-",
+      "deathX": 707.4107501819108,
+      "actionCounts": {
+        "0": 1,
+        "1": 7,
+        "2": 94,
+        "4": 4,
+        "5": 8,
+        "6": 4,
+        "11": 11,
+        "12": 1
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": true,
+      "ticks": 517,
+      "playerHp": 64,
+      "deathBy": "-",
+      "deathX": 707.4107501819108,
+      "actionCounts": {
+        "0": 1,
+        "1": 7,
+        "2": 94,
+        "4": 4,
+        "5": 8,
+        "6": 4,
+        "11": 11,
+        "12": 1
+      },
+      "idleFrames": 0
+    }
+  ],
+  "air": [
+    {
+      "win": false,
+      "ticks": 3000,
+      "playerHp": 18,
+      "deathBy": "timeout",
+      "deathX": 1708.1689596829137,
+      "actionCounts": {
+        "0": 57,
+        "1": 237,
+        "2": 87,
+        "5": 90,
+        "6": 86,
+        "10": 158,
+        "11": 18,
+        "12": 17
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": false,
+      "ticks": 3000,
+      "playerHp": 44,
+      "deathBy": "timeout",
+      "deathX": 1986.7734923977787,
+      "actionCounts": {
+        "0": 22,
+        "1": 291,
+        "2": 85,
+        "4": 3,
+        "5": 44,
+        "6": 102,
+        "10": 138,
+        "11": 20,
+        "12": 45
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": false,
+      "ticks": 3000,
+      "playerHp": 10,
+      "deathBy": "timeout",
+      "deathX": 1245.40836362412,
+      "actionCounts": {
+        "0": 22,
+        "1": 256,
+        "2": 86,
+        "5": 53,
+        "6": 83,
+        "10": 197,
+        "11": 37,
+        "12": 16
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": false,
+      "ticks": 2511,
+      "playerHp": 0,
+      "deathBy": "crow",
+      "deathX": 1430.5835784749174,
+      "actionCounts": {
+        "1": 168,
+        "2": 71,
+        "5": 29,
+        "6": 87,
+        "10": 227,
+        "11": 45,
+        "12": 1
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": true,
+      "ticks": 1924,
+      "playerHp": 58,
+      "deathBy": "-",
+      "deathX": 1594.5715968674035,
+      "actionCounts": {
+        "0": 22,
+        "1": 125,
+        "2": 73,
+        "4": 2,
+        "5": 31,
+        "6": 72,
+        "10": 125,
+        "11": 28,
+        "12": 4
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": false,
+      "ticks": 3000,
+      "playerHp": 18,
+      "deathBy": "timeout",
+      "deathX": 1868.9818718678446,
+      "actionCounts": {
+        "0": 10,
+        "1": 252,
+        "2": 108,
+        "4": 2,
+        "5": 34,
+        "6": 83,
+        "10": 183,
+        "11": 28,
+        "12": 50
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": false,
+      "ticks": 2744,
+      "playerHp": 0,
+      "deathBy": "crow",
+      "deathX": 1620.7768380085995,
+      "actionCounts": {
+        "0": 9,
+        "1": 238,
+        "2": 74,
+        "5": 35,
+        "6": 66,
+        "10": 233,
+        "11": 25,
+        "12": 7
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": false,
+      "ticks": 3000,
+      "playerHp": 34,
+      "deathBy": "timeout",
+      "deathX": 1756.5324962831628,
+      "actionCounts": {
+        "0": 38,
+        "1": 229,
+        "2": 129,
+        "4": 1,
+        "5": 56,
+        "6": 107,
+        "10": 144,
+        "11": 37,
+        "12": 9
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": false,
+      "ticks": 3000,
+      "playerHp": 24,
+      "deathBy": "timeout",
+      "deathX": 2017.7010190563294,
+      "actionCounts": {
+        "0": 30,
+        "1": 272,
+        "2": 101,
+        "4": 4,
+        "5": 54,
+        "6": 101,
+        "10": 129,
+        "11": 31,
+        "12": 28
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": false,
+      "ticks": 3000,
+      "playerHp": 10,
+      "deathBy": "timeout",
+      "deathX": 1502.5838855171955,
+      "actionCounts": {
+        "0": 26,
+        "1": 252,
+        "2": 91,
+        "5": 84,
+        "6": 78,
+        "10": 168,
+        "11": 41,
+        "12": 10
+      },
+      "idleFrames": 0
+    }
+  ],
+  "wave2": [
+    {
+      "win": false,
+      "ticks": 5246,
+      "playerHp": 0,
+      "deathBy": "crow",
+      "deathX": 2662.1734785751732,
+      "actionCounts": {
+        "0": 67,
+        "1": 526,
+        "2": 141,
+        "4": 2,
+        "5": 77,
+        "6": 169,
+        "10": 114,
+        "11": 30,
+        "12": 186
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": false,
+      "ticks": 5400,
+      "playerHp": 22,
+      "deathBy": "timeout",
+      "deathX": 2714.95,
+      "actionCounts": {
+        "0": 42,
+        "1": 566,
+        "2": 139,
+        "4": 6,
+        "5": 33,
+        "6": 185,
+        "10": 79,
+        "11": 51,
+        "12": 249
+      },
+      "idleFrames": 44
+    },
+    {
+      "win": false,
+      "ticks": 2498,
+      "playerHp": 0,
+      "deathBy": "archer",
+      "deathX": 2644.0107486387487,
+      "actionCounts": {
+        "0": 104,
+        "1": 110,
+        "2": 114,
+        "4": 3,
+        "5": 29,
+        "6": 55,
+        "10": 61,
+        "11": 97,
+        "12": 52
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": false,
+      "ticks": 2204,
+      "playerHp": 0,
+      "deathBy": "archer",
+      "deathX": 2727.4,
+      "actionCounts": {
+        "0": 12,
+        "1": 82,
+        "2": 232,
+        "5": 58,
+        "6": 21,
+        "10": 104,
+        "11": 31,
+        "12": 12
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": false,
+      "ticks": 5400,
+      "playerHp": 12,
+      "deathBy": "timeout",
+      "deathX": 2608.2968586932366,
+      "actionCounts": {
+        "0": 71,
+        "1": 637,
+        "2": 133,
+        "5": 114,
+        "6": 146,
+        "10": 157,
+        "11": 15,
+        "12": 77
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": false,
+      "ticks": 2708,
+      "playerHp": 0,
+      "deathBy": "crow",
+      "deathX": 2541.384531250721,
+      "actionCounts": {
+        "0": 73,
+        "1": 163,
+        "2": 133,
+        "4": 1,
+        "5": 65,
+        "6": 24,
+        "10": 137,
+        "11": 75,
+        "12": 7
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": false,
+      "ticks": 1363,
+      "playerHp": 0,
+      "deathBy": "ashigaru",
+      "deathX": 661.3875114828896,
+      "actionCounts": {
+        "0": 28,
+        "1": 38,
+        "2": 81,
+        "4": 4,
+        "5": 37,
+        "6": 5,
+        "10": 100,
+        "11": 48
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": false,
+      "ticks": 5400,
+      "playerHp": 20,
+      "deathBy": "timeout",
+      "deathX": 2737.9,
+      "actionCounts": {
+        "0": 51,
+        "1": 603,
+        "2": 125,
+        "4": 6,
+        "5": 119,
+        "6": 174,
+        "10": 171,
+        "11": 26,
+        "12": 75
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": true,
+      "ticks": 1888,
+      "playerHp": 32,
+      "deathBy": "-",
+      "deathX": 1410.3745625284437,
+      "actionCounts": {
+        "0": 33,
+        "1": 119,
+        "2": 71,
+        "5": 60,
+        "6": 37,
+        "10": 103,
+        "11": 44,
+        "12": 6
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": false,
+      "ticks": 1133,
+      "playerHp": 0,
+      "deathBy": "ashigaru",
+      "deathX": 937.3857457537075,
+      "actionCounts": {
+        "0": 14,
+        "1": 87,
+        "2": 37,
+        "4": 1,
+        "5": 36,
+        "6": 12,
+        "10": 75,
+        "11": 22
+      },
+      "idleFrames": 0
+    }
+  ],
+  "boss": [
+    {
+      "win": false,
+      "ticks": 1866,
+      "playerHp": 0,
+      "deathBy": "boss",
+      "deathX": 2210.1308247039406,
+      "actionCounts": {
+        "0": 5,
+        "1": 525,
+        "2": 53,
+        "5": 52,
+        "6": 55,
+        "10": 241,
+        "11": 3
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": false,
+      "ticks": 1838,
+      "playerHp": 0,
+      "deathBy": "boss",
+      "deathX": 1633.5789806026603,
+      "actionCounts": {
+        "0": 74,
+        "1": 425,
+        "2": 45,
+        "5": 38,
+        "6": 102,
+        "10": 234,
+        "11": 2
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": false,
+      "ticks": 2047,
+      "playerHp": 0,
+      "deathBy": "boss",
+      "deathX": 2018.9173109165395,
+      "actionCounts": {
+        "0": 16,
+        "1": 614,
+        "2": 73,
+        "5": 39,
+        "6": 61,
+        "10": 212,
+        "11": 8,
+        "12": 1
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": false,
+      "ticks": 1708,
+      "playerHp": 0,
+      "deathBy": "boss",
+      "deathX": 1964.5945905684696,
+      "actionCounts": {
+        "0": 7,
+        "1": 325,
+        "2": 79,
+        "5": 112,
+        "6": 63,
+        "10": 252,
+        "11": 17
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": false,
+      "ticks": 1503,
+      "playerHp": 0,
+      "deathBy": "boss",
+      "deathX": 1992.4629076487088,
+      "actionCounts": {
+        "0": 1,
+        "1": 362,
+        "2": 63,
+        "5": 76,
+        "6": 31,
+        "10": 217,
+        "11": 2
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": false,
+      "ticks": 1731,
+      "playerHp": 0,
+      "deathBy": "boss",
+      "deathX": 2301.918004081189,
+      "actionCounts": {
+        "0": 1,
+        "1": 416,
+        "2": 85,
+        "5": 56,
+        "6": 41,
+        "10": 259,
+        "11": 6,
+        "12": 2
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": false,
+      "ticks": 1413,
+      "playerHp": 0,
+      "deathBy": "boss",
+      "deathX": 2183.3030629127834,
+      "actionCounts": {
+        "1": 340,
+        "2": 57,
+        "5": 68,
+        "6": 21,
+        "10": 219,
+        "11": 2
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": false,
+      "ticks": 1711,
+      "playerHp": 0,
+      "deathBy": "boss",
+      "deathX": 1991.0948598257153,
+      "actionCounts": {
+        "0": 2,
+        "1": 408,
+        "2": 75,
+        "5": 88,
+        "6": 35,
+        "10": 245,
+        "11": 3
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": false,
+      "ticks": 2085,
+      "playerHp": 0,
+      "deathBy": "boss",
+      "deathX": 1706.6747458196028,
+      "actionCounts": {
+        "0": 10,
+        "1": 353,
+        "2": 145,
+        "4": 3,
+        "5": 83,
+        "6": 87,
+        "10": 341,
+        "11": 19,
+        "12": 2
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": false,
+      "ticks": 2112,
+      "playerHp": 0,
+      "deathBy": "boss",
+      "deathX": 2177.2956938166194,
+      "actionCounts": {
+        "0": 2,
+        "1": 640,
+        "2": 79,
+        "4": 14,
+        "5": 39,
+        "6": 49,
+        "10": 226,
+        "11": 7,
+        "12": 1
+      },
+      "idleFrames": 0
+    }
+  ],
+  "bossSquad": [
+    {
+      "win": false,
+      "ticks": 3006,
+      "playerHp": 0,
+      "deathBy": "boss",
+      "deathX": 2644.1911765076748,
+      "actionCounts": {
+        "0": 112,
+        "1": 984,
+        "2": 153,
+        "4": 12,
+        "5": 39,
+        "6": 97,
+        "10": 104,
+        "11": 3
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": false,
+      "ticks": 1995,
+      "playerHp": 0,
+      "deathBy": "boss",
+      "deathX": 2687.912593117999,
+      "actionCounts": {
+        "0": 75,
+        "1": 550,
+        "2": 39,
+        "4": 12,
+        "5": 31,
+        "6": 149,
+        "10": 124,
+        "11": 18
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": false,
+      "ticks": 1940,
+      "playerHp": 0,
+      "deathBy": "boss",
+      "deathX": 2687.8238151825994,
+      "actionCounts": {
+        "0": 57,
+        "1": 555,
+        "2": 77,
+        "4": 12,
+        "5": 42,
+        "6": 103,
+        "10": 116,
+        "11": 9
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": false,
+      "ticks": 2195,
+      "playerHp": 0,
+      "deathBy": "boss",
+      "deathX": 2505.1652431398034,
+      "actionCounts": {
+        "0": 149,
+        "1": 570,
+        "2": 132,
+        "4": 19,
+        "5": 27,
+        "6": 81,
+        "10": 100,
+        "11": 20
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": false,
+      "ticks": 1423,
+      "playerHp": 0,
+      "deathBy": "boss",
+      "deathX": 2295.9141769279795,
+      "actionCounts": {
+        "0": 43,
+        "1": 387,
+        "2": 59,
+        "4": 12,
+        "5": 45,
+        "6": 41,
+        "10": 124,
+        "11": 1
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": false,
+      "ticks": 2147,
+      "playerHp": 0,
+      "deathBy": "boss",
+      "deathX": 2721.0999999999963,
+      "actionCounts": {
+        "0": 81,
+        "1": 700,
+        "2": 89,
+        "4": 12,
+        "5": 26,
+        "6": 73,
+        "10": 90,
+        "11": 1,
+        "12": 2
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": false,
+      "ticks": 1559,
+      "playerHp": 0,
+      "deathBy": "boss",
+      "deathX": 2667.376097455597,
+      "actionCounts": {
+        "0": 58,
+        "1": 462,
+        "2": 67,
+        "4": 12,
+        "5": 47,
+        "6": 53,
+        "10": 66,
+        "11": 15
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": false,
+      "ticks": 1957,
+      "playerHp": 0,
+      "deathBy": "boss",
+      "deathX": 2681.361213197741,
+      "actionCounts": {
+        "0": 79,
+        "1": 633,
+        "2": 102,
+        "4": 12,
+        "5": 24,
+        "6": 28,
+        "10": 78,
+        "11": 23
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": false,
+      "ticks": 2436,
+      "playerHp": 0,
+      "deathBy": "boss",
+      "deathX": 2167.197253177038,
+      "actionCounts": {
+        "0": 122,
+        "1": 736,
+        "2": 99,
+        "4": 12,
+        "5": 43,
+        "6": 90,
+        "10": 113,
+        "11": 4
+      },
+      "idleFrames": 0
+    },
+    {
+      "win": false,
+      "ticks": 3006,
+      "playerHp": 0,
+      "deathBy": "boss",
+      "deathX": 2644.1911765076748,
+      "actionCounts": {
+        "0": 112,
+        "1": 984,
+        "2": 153,
+        "4": 12,
+        "5": 39,
+        "6": 97,
+        "10": 104,
+        "11": 3
+      },
+      "idleFrames": 0
+    }
+  ]
+}

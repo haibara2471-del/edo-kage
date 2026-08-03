@@ -35,11 +35,13 @@ export class Flyer {
   private readonly wobble: number;
   private readonly altitude: number;
   private readonly speed: number;
+  readonly passive: boolean; // 被动模式：只盘旋不俯冲（RL 纯镖局用，逼玩家扔镖）
 
   constructor(
     public x: number,
     public y: number,
     public readonly kind: FlyerKind,
+    opts: { passive?: boolean } = {},
   ) {
     const s = STATS[kind];
     this.hp = s.hp;
@@ -49,6 +51,7 @@ export class Flyer {
     this.speed = s.speed;
     this.w = s.w;
     this.h = s.h;
+    this.passive = opts.passive ?? false;
     this.wobble = rand() * Math.PI * 2;
     this.t = Math.floor(rand() * 60);
   }
@@ -120,13 +123,16 @@ export class Flyer {
       case 'circle': {
         // 在玩家上空缓慢漂移
         const hx = clamp(player.centerX + Math.sin(this.t * 0.011 + this.wobble) * 160, 40, stage.width - 40);
-        const hy = clamp(player.y - this.altitude + Math.sin(this.t * 0.07 + this.wobble) * 18, 50, stage.groundY - 140);
+        const hy = this.passive
+          ? clamp(player.y - this.altitude - 40 + Math.sin(this.t * 0.07 + this.wobble) * 10, 50, stage.groundY - 160)
+          : clamp(player.y - this.altitude + Math.sin(this.t * 0.07 + this.wobble) * 18, 50, stage.groundY - 140);
         this.vx = clamp(this.vx + (hx - this.x) * 0.004, -2, 2);
         this.vy = clamp(this.vy + (hy - this.y) * 0.004, -1.6, 1.6);
         this.x += this.vx;
         this.y += this.vy;
         if (Math.abs(this.vx) > 0.3) this.facing = Math.sign(this.vx);
         if (
+          !this.passive &&
           player.state !== 'dead' &&
           Math.abs(player.centerX - this.centerX) < 280 &&
           --this.timer <= 0
