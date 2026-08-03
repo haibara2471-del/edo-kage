@@ -21,6 +21,7 @@ const STEP = 1000 / 60; // 固定 60Hz 逻辑步进
 
 const DEBUG = new URLSearchParams(location.search).has('debug');
 const REPLAY_ID = new URLSearchParams(location.search).get('replay');
+const AI_SPECTATE = new URLSearchParams(location.search).get('ai'); // 'boss' | 'waves' | null
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d')!;
@@ -49,7 +50,7 @@ const world: World = {
 };
 
 type Mode = 'title' | 'play' | 'codex' | 'loading';
-let mode: Mode = REPLAY_ID ? 'loading' : 'title';
+let mode: Mode = REPLAY_ID || AI_SPECTATE ? 'loading' : 'title';
 let frameCount = 0;
 let zenFlash = 0; // 「禅」密令触发提示
 
@@ -109,6 +110,38 @@ if (REPLAY_ID) {
     // 记录的 J 键会在同一帧触发开局，保证敌人刷新与输入对齐
     mode = 'title';
   });
+}
+
+// AI 观战通道：?ai=boss → 直接 Boss 场 + AI 代打斩龙；?ai=waves → 全程代打
+if (AI_SPECTATE) {
+  void (async () => {
+    try {
+      const ai = new AiInput(world);
+      aiPlay = true;
+      if (AI_SPECTATE === 'boss') {
+        // 直接开 Boss 战（借 Waves 的 spawnBoss 逻辑）
+        world.enemies.length = 0;
+        world.player.x = 2310 + 60;
+        world.player.y = 300;
+        const cx = 2310 + (2750 - 2310) / 2;
+        const { Boss } = await import('./boss');
+        const { HookSoldier } = await import('./hooksoldier');
+        world.enemies.push(new Boss(cx + 100, stage.groundY - 40));
+        world.enemies.push(new HookSoldier(cx - 120, stage.groundY - 34));
+        world.enemies.push(new HookSoldier(cx + 220, stage.groundY - 34));
+        waves.barrierL = 2310 + 12;
+        waves.barrierX = 2750 - 12;
+        await ai.init('models/ppo_boss.onnx');
+      } else {
+        await ai.init('models/ppo_waves.onnx');
+      }
+      world.input = ai;
+      mode = 'play';
+    } catch (e) {
+      replayError = true;
+      console.error('AI 加载失败', e);
+    }
+  })();
 }
 
 const zenBuf: { code: string; time: number }[] = [];

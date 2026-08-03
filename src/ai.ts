@@ -99,7 +99,9 @@ export class AiInput extends Input {
       super.tick();
       return;
     }
-    if (this.session && this.frame % 4 === 0) void this.decide(); // 与训练一致的 15Hz 决策
+    // Boss 场：训练决策是 2 帧/步（30Hz），普通场是 4 帧/步
+    const isBoss = this.world.enemies.some((e) => e.codexId === 'boss');
+    if (this.session && this.frame % (isBoss ? 2 : 4) === 0) void this.decide();
     super.tick();
   }
 
