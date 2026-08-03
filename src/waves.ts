@@ -8,7 +8,7 @@ import { Shaman } from './shaman';
 import { Boss } from './boss';
 import type { World } from './world';
 
-type Phase = 'start' | 'fight' | 'advance' | 'bossfight' | 'done';
+type Phase = 'start' | 'fight' | 'advance' | 'bossfight' | 'hardfight' | 'done';
 
 /** 战区边界（造梦西游式区域封锁；地面已连通，不再依赖地形分段） */
 const ZONES = [
@@ -77,6 +77,12 @@ export class Waves {
 
       case 'bossfight':
         if (w.enemies.length === 0) {
+          this.spawnHardBoss(w);
+        }
+        break;
+
+      case 'hardfight':
+        if (w.enemies.length === 0) {
           this.phase = 'done';
           this.done = true;
           this.barrierX = null;
@@ -100,6 +106,15 @@ export class Waves {
     w.enemies.push(new Boss(cx + 100, w.stage.groundY - 40));
     w.enemies.push(new HookSoldier(cx - 120, w.stage.groundY - 34));
     w.enemies.push(new HookSoldier(cx + 220, w.stage.groundY - 34));
+  }
+
+  /** Hard 模式：通关普通 Boss 后，真龙现身——强化版（300 血 / 残像 35%） */
+  private spawnHardBoss(w: World): void {
+    this.phase = 'hardfight';
+    this.announceTimer = 120;
+    const zone = ZONES[2];
+    const cx = (zone.x0 + zone.x1) / 2;
+    w.enemies.push(new Boss(cx, w.stage.groundY - 40, { hp: 300, dodge: 0.35 }));
   }
 
   private startWave(w: World, zoneIdx: number): void {
@@ -170,6 +185,7 @@ export class Waves {
       case 'fight': return `第 ${this.wave} / ${this.total} 波`;
       case 'advance': return '前進 →';
       case 'bossfight': return '最終決戦「龍」';
+      case 'hardfight': return '修羅場・真龍';
       case 'done': return '任務完了 · 按 R 重开';
     }
   }
