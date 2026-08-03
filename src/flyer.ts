@@ -7,8 +7,8 @@ import type { World } from './world';
 type State = 'circle' | 'telegraph' | 'dive' | 'climb' | 'hit' | 'dead';
 
 const STATS: Record<FlyerKind, { hp: number; dmg: number; speed: number; altitude: number; w: number; h: number }> = {
-  crow: { hp: 12, dmg: 8, speed: 5.2, altitude: 150, w: 18, h: 12 },
-  bat:  { hp: 8,  dmg: 5, speed: 6.0, altitude: 100, w: 16, h: 10 },
+  crow: { hp: 10, dmg: 8, speed: 5.2, altitude: 115, w: 18, h: 12 },
+  bat:  { hp: 8,  dmg: 5, speed: 6.0, altitude: 85,  w: 16, h: 10 },
 };
 
 /** 飞行敌人：在玩家上空盘旋 → 警告抖动 → 俯冲 → 爬升。只有俯冲时有攻击判定 */
@@ -170,7 +170,7 @@ export class Flyer {
         if (Math.abs(this.vx) > 0.3) this.facing = Math.sign(this.vx);
         if (this.y <= player.y - this.altitude * 0.8) {
           this.state = 'circle';
-          this.timer = 90 + rand() * 90;
+          this.timer = 70 + rand() * 60; // 更勤快俯冲（别让玩家等太久）
         }
         break;
     }

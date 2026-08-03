@@ -92,6 +92,13 @@ export class AiInput extends Input {
   }
 
   override tick(): void {
+    // 场上无敌：训练中不存在"安静期"，策略会摇摆——直接向右推进触发下一波
+    if (this.world.enemies.every((e) => e.dead)) {
+      this.held.clear();
+      this.held.add('right');
+      super.tick();
+      return;
+    }
     if (this.session && this.frame % 4 === 0) void this.decide(); // 与训练一致的 15Hz 决策
     super.tick();
   }

@@ -1,7 +1,8 @@
-"""PPO 训练：waves（三波连战）/ boss（斩龙）/ ashigaru / wave1。
+"""PPO 训练 v2：16 并行局 + EvalCallback（自动存最佳）+ 单次连续 learn。
 用法：npm run env 启动后——
-  python sim/rl/train.py waves 200000        # CPU（推荐，MLP 小网络）
-  python sim/rl/train.py boss 200000 big     # 大网络 [256,256] + CUDA
+  python sim/rl/train.py waves 500000         # 从零（默认）
+  python sim/rl/train.py waves 500000 resume  # 断点续训
+  python sim/rl/train.py boss 500000 init=ppo_waves  # 迁移初始化
 """
 import sys
 import time
@@ -11,78 +12,54 @@ sys.stdout.reconfigure(encoding="utf-8")
 
 from edo_env import EdoEnv, BatchVecEnv
 from stable_baselines3 import PPO
+from stable_baselines3.common.callbacks import EvalCallback
 
 SCENARIO = sys.argv[1] if len(sys.argv) > 1 else "ashigaru"
-TOTAL_STEPS = int(sys.argv[2]) if len(sys.argv) > 2 else 200_000
-BIG = len(sys.argv) > 3 and sys.argv[3] == "big"
-N_ENVS = 8
-
-
-def evaluate(model, env, n=20):
-    wins = 0
-    waves_reached = []
-    kills_list = []
-    hp_left = []
-    for _ in range(n):
-        obs, _ = env.reset()
-        done = False
-        while not done:
-            action, _ = model.predict(obs, deterministic=True)
-            obs, _, terminated, truncated, info = env.step(action)
-            done = terminated or truncated
-        if info.get("enemiesAlive", 1) == 0:
-            wins += 1
-        waves_reached.append(info.get("wave", 1))
-        kills_list.append(info.get("kills", 0))
-        hp_left.append(info.get("playerHp", 0))
-    return (
-        wins / n,
-        sum(waves_reached) / len(waves_reached),
-        sum(kills_list) / len(kills_list),
-        sum(hp_left) / len(hp_left),
-    )
+TOTAL_STEPS = int(sys.argv[2]) if len(sys.argv) > 2 else 500_000
+RESUME = "resume" in sys.argv
+INIT = next((a.split("=", 1)[1] for a in sys.argv if a.startswith("init=")), None)
+N_ENVS = 16      # 并行局数（同一批 rollout 收集自 16 局同时进行的游戏）
+N_STEPS = 256    # 每局每轮收集步数 → 一批 rollout = 16×256 = 4096
+BATCH_SIZE = 2048  # 梯度 minibatch（一批 rollout 切 2 块，学习更稳）
 
 
 def main():
     env = BatchVecEnv(scenario=SCENARIO, n_envs=N_ENVS)
-    eval_env = EdoEnv(scenario=SCENARIO, session="eval")
+    eval_env = EdoEnv(scenario=SCENARIO, session="evalcb")
 
-    kwargs = dict(device="cpu")
-    if BIG:
-        # 大网络才值得上 GPU；默认 MLP 在 CPU 上更快
-        kwargs = dict(device="cuda", policy_kwargs=dict(net_arch=[256, 256]))
+    eval_cb = EvalCallback(
+        eval_env,
+        best_model_save_path=".",
+        log_path=".",
+        eval_freq=40_000,       # 每 4 万步评估一次（总步数计）
+        n_eval_episodes=10,
+        deterministic=True,
+        verbose=1,
+    )
 
     model_path = Path(f"ppo_{SCENARIO}.zip")
-    if model_path.exists():
-        # 断点续训
-        model = PPO.load(str(model_path), env=env, device=kwargs.get("device", "cpu"))
+    if INIT and Path(f"{INIT}.zip").exists():
+        model = PPO.load(f"{INIT}.zip", env=env, device="cpu")
+        print(f"迁移初始化 {INIT}.zip")
+    elif RESUME and model_path.exists():
+        model = PPO.load(str(model_path), env=env, device="cpu")
         print(f"续训 {model_path}")
     else:
         model = PPO(
             "MlpPolicy",
             env,
-            n_steps=512,
-            batch_size=512,
+            device="cpu",
+            n_steps=N_STEPS,
+            batch_size=BATCH_SIZE,
             learning_rate=3e-4,
-            ent_coef=0.02,
+            ent_coef=0.05,
             verbose=1,
-            **kwargs,
         )
 
     t0 = time.time()
-    best_win = -1.0
-    for ckpt in range(1, 6):
-        model.learn(total_timesteps=TOTAL_STEPS // 5, reset_num_timesteps=False)
-        win, avg_wave, avg_kills, avg_hp = evaluate(model, eval_env)
-        print(f"[ckpt {ckpt}] steps≈{model.num_timesteps}  胜率={win:.0%}  平均波次={avg_wave:.1f}  平均击杀={avg_kills:.1f}  平均剩血={avg_hp:.0f}  用时={time.time()-t0:.0f}s")
-        if win >= best_win:
-            best_win = win
-            model.save(f"ppo_{SCENARIO}_best")  # 保存最佳而非最终（PPO 迭代间会振荡）
-            if win > 0:
-                print(f"  ↑ 新最佳 {win:.0%}，已保存 ppo_{SCENARIO}_best.zip")
-
+    model.learn(total_timesteps=TOTAL_STEPS, callback=eval_cb)
     model.save(f"ppo_{SCENARIO}")
-    print(f"完成，最佳胜率 {best_win:.0%}（已存 ppo_{SCENARIO}_best.zip / ppo_{SCENARIO}.zip）")
+    print(f"完成 {model.num_timesteps} 步，用时 {time.time()-t0:.0f}s，最佳模型 best_model.zip / 最终 ppo_{SCENARIO}.zip")
 
 
 if __name__ == "__main__":

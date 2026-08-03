@@ -28,8 +28,8 @@ export class Boss {
   facing = -1;
   onGround = false;
 
-  hp = 200;
-  readonly maxHp = 200;
+  hp: number;
+  readonly maxHp: number;
   readonly codexId = 'boss' as const;
 
   state: State = 'idle';
@@ -44,11 +44,20 @@ export class Boss {
   dodgeCd = 0;      // 残像后的短暂无敌
   private hitChain = 0;   // 短时间内连续受击计数
   private lastHitT = -99;
+  private readonly dodgeBase: number;
+  private readonly noPhase2: boolean;
 
   constructor(
     public x: number,
     public y: number,
-  ) {}
+    opts: { hp?: number; dodge?: number; noPhase2?: boolean } = {},
+  ) {
+    // 难度参数：RL 课程用（弱化版 → 完全版），游戏本体用默认值
+    this.maxHp = opts.hp ?? 200;
+    this.hp = this.maxHp;
+    this.dodgeBase = opts.dodge ?? 0.25;
+    this.noPhase2 = opts.noPhase2 ?? false;
+  }
 
   get rect(): Rect {
     return { x: this.x, y: this.y, w: this.w, h: this.h };
@@ -58,7 +67,7 @@ export class Boss {
   get centerY(): number { return this.y + this.h / 2; }
   get dead(): boolean { return this.state === 'dead'; }
   get removable(): boolean { return this.state === 'dead' && this.deadTimer > 70; }
-  get phase2(): boolean { return this.hp <= this.maxHp / 2; }
+  get phase2(): boolean { return !this.noPhase2 && this.hp <= this.maxHp / 2; }
 
   get contactDamage(): number {
     switch (this.state) {
@@ -78,7 +87,7 @@ export class Boss {
     else this.hitChain = 1;
     this.lastHitT = this.t;
 
-    const dodgeChance = this.phase2 ? 0.4 : 0.25;
+    const dodgeChance = this.phase2 ? Math.min(0.5, this.dodgeBase + 0.15) : this.dodgeBase;
     if (this.hitChain >= 3 || rand() < dodgeChance) {
       this.hitChain = 0;
       this.dodgeCd = 25;

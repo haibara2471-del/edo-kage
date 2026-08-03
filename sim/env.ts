@@ -17,7 +17,7 @@ import { resolveCombat } from '../src/combat';
 import { reseed } from '../src/rng';
 import type { World } from '../src/world';
 
-export type Scenario = 'ashigaru' | 'wave1' | 'waves' | 'boss';
+export type Scenario = 'ashigaru' | 'wave1' | 'waves' | 'boss' | 'bossEasy';
 
 /** 直接注入式输入（每帧可设置按住集合 + 点按） */
 class EnvInput {
@@ -89,6 +89,7 @@ function maxTicks(scenario: Scenario): number {
     case 'wave1': return 3000;
     case 'waves': return 5400;
     case 'boss': return 7200; // Boss 战放宽（谨慎风格也需要时间磨 200 血）
+    case 'bossEasy': return 5400;
   }
 }
 
@@ -101,6 +102,8 @@ export class GameEnv {
   private player!: Player;
   private t = 0;
   private waveIdx = 0;
+  private advanceTarget = -1; // waves 场景：清波后需向右推进到此位置才刷下一波（对齐真实游戏）
+  private prevCx = 0;
   private prevPlayerHp = 100;
   private prevEnemyTotalHp = 0;
   private prevEnemiesAlive = 0;
@@ -133,7 +136,6 @@ export class GameEnv {
       camX: 0,
     };
     this.world = world;
-    this.waveIdx = 0;
 
     if (this.scenario === 'ashigaru') {
       world.enemies.push(Enemy.ashigaru(this.player.x + 90, stage.groundY));
@@ -145,9 +147,14 @@ export class GameEnv {
       this.spawnWave(1);
     } else if (this.scenario === 'boss') {
       world.enemies.push(new Boss(this.player.x + 90, stage.groundY - 40));
+    } else if (this.scenario === 'bossEasy') {
+      // 课程弱化版：100 血 / 残像 12% / 无二阶段
+      world.enemies.push(new Boss(this.player.x + 90, stage.groundY - 40, { hp: 100, dodge: 0.12, noPhase2: true }));
     }
 
     this.t = 0;
+    this.advanceTarget = -1;
+    this.prevCx = this.player.centerX;
     this.prevPlayerHp = this.player.hp;
     this.prevEnemyTotalHp = this.enemyTotalHp();
     this.prevEnemiesAlive = world.enemies.length;
@@ -158,24 +165,25 @@ export class GameEnv {
     return this.observe();
   }
 
-  /** 正式三波阵容（与 waves.ts 一致） */
+  /** 正式三波阵容（两侧散开，距离与 waves.ts 的 ±420 一致，可逐个击破） */
   private spawnWave(idx: number): void {
     this.waveIdx = idx;
     const stage = this.world.stage;
     const px = this.player.centerX;
     const gy = stage.groundY;
     const E = this.world.enemies;
+    const both = (i: number): number => px + (i % 2 === 0 ? -1 : 1) * (400 + i * 80);
     if (idx === 1) {
-      for (let i = 0; i < 3; i++) E.push(Enemy.ashigaru(px + 140 + i * 120, gy));
+      for (let i = 0; i < 3; i++) E.push(Enemy.ashigaru(both(i), gy));
     } else if (idx === 2) {
-      for (let i = 0; i < 3; i++) E.push(Enemy.ashigaru(px + 120 + i * 130, gy));
-      E.push(new Flyer(px + 240, gy - 220, 'crow'));
+      for (let i = 0; i < 3; i++) E.push(Enemy.ashigaru(both(i), gy));
+      E.push(new Flyer(px - 240, gy - 220, 'crow'));
       E.push(new Archer(px + 300, gy - 34));
       E.push(new HookSoldier(px + 380, gy - 34));
     } else if (idx === 3) {
-      for (let i = 0; i < 2; i++) E.push(Enemy.ashigaru(px + 120 + i * 140, gy));
+      for (let i = 0; i < 2; i++) E.push(Enemy.ashigaru(both(i), gy));
       E.push(new Flyer(px + 220, gy - 160, 'bat'));
-      E.push(new Archer(px + 320, gy - 34));
+      E.push(new Archer(px - 320, gy - 34));
       E.push(new Bruiser(px + 260, gy - 46));
       E.push(new Shaman(px + 400, gy - 32));
     }
@@ -186,8 +194,9 @@ export class GameEnv {
     const combo = ACTIONS[actionIdx] ?? [];
     const kiBefore = this.player.ki;
 
-    // 帧跳跃：每个 agent 步 = 4 游戏帧（15Hz 决策，动作连贯、信用分配更稳）
-    for (let f = 0; f < 4; f++) {
+    // 帧跳跃：一般场景 4 帧/步（15Hz）；Boss 战 2 帧/步（30Hz，残像/连招需要更细的反应粒度）
+    const frames = this.scenario === 'boss' ? 2 : 4;
+    for (let f = 0; f < frames; f++) {
       input.beginTick();
       input.clearMomentary();
       if (f === 0) {
@@ -206,74 +215,87 @@ export class GameEnv {
     let wasted = 0;
     for (const a of combo) {
       const cost = SKILL_COSTS[a];
-      if (cost !== undefined && kiBefore < cost) wasted += 0.1;
+      if (cost !== undefined && kiBefore < cost) wasted += 0.05;
     }
 
-    // —— 奖励（四分项：伤害 / combo / 击杀 / 生存；受到伤害重罚） ——
+    // —— 归一化奖励（单局回报量级 O(10)，冻结后不再调整） ——
     const enemyHp = this.enemyTotalHp();
     const dealt = Math.max(0, this.prevEnemyTotalHp - enemyHp);   // ① 造成伤害
     const taken = Math.max(0, this.prevPlayerHp - this.player.hp); // 承受伤害
     const dist = this.nearestEnemyDist();
     const approach = this.prevDist - dist;
 
-    // ② combo：12 步窗口（≈0.8 秒）累计伤害 ≥15，持续期间每步 +0.3
+    // ② combo：12 步窗口（≈0.8 秒）内持续命中伤害 ≥15，期间每步 +0.05
     this.recentDmg.push(dealt);
     if (this.recentDmg.length > 12) this.recentDmg.shift();
     const windowDmg = this.recentDmg.reduce((s, d) => s + d, 0);
-    const comboBonus = windowDmg >= 15 ? 0.3 : 0;
+    const comboBonus = windowDmg >= 15 ? 0.05 : 0;
     this.comboPeak = Math.max(this.comboPeak, windowDmg);
 
     const enemiesAlive = this.world.enemies.length;
     const killsNow = Math.max(0, this.prevEnemiesAlive - enemiesAlive);
     this.totalKills += killsNow;                                     // ③ 击杀
 
-    // Boss 血量里程碑：每打掉 50 血 +20（给清晰的进度梯度）
+    // Boss 血量里程碑：每打掉 50 血 +2
     let milestone = 0;
-    if (this.scenario === 'boss') {
+    if (this.scenario === 'boss' || this.scenario === 'bossEasy') {
       const before = Math.floor(this.prevEnemyTotalHp / 50);
       const after = Math.floor(enemyHp / 50);
-      milestone = Math.max(0, before - after) * 20;
+      milestone = Math.max(0, before - after) * 2;
     }
 
-    // 奖励权重：Boss 战需要强进攻引导（否则收敛到"全场遛狗不输出"的和平主义）
     const W =
-      this.scenario === 'boss'
-        ? { dealt: 2.0, taken: 0.5, kill: 100, farPenalty: 0.05 }
-        : { dealt: 0.5, taken: 1.0, kill: 3, farPenalty: 0 };
+      this.scenario === 'boss' || this.scenario === 'bossEasy'
+        ? { dealt: 0.3, taken: 0.15, kill: 10, farPenalty: 0.01 }
+        : { dealt: 0.3, taken: 0.1, kill: 2, farPenalty: 0 };
 
-    // ④ 生存：不设过程奖励（每帧给分=鼓励挂机），只在通关时按剩余血量给分
     let reward =
-      dealt * W.dealt +     // ① 伤害
-      comboBonus +           // ② combo
+      dealt * W.dealt +      // ① 伤害
+      comboBonus +           // ② combo（单位时间持续命中）
       killsNow * W.kill +    // ③ 击杀
       milestone +            // Boss 血量里程碑
       approach * 0.01 -      // 逼近引导
       taken * W.taken -      // 受到伤害
-      (dist > 100 ? W.farPenalty : 0) - // Boss 战远离惩罚（反遛狗）
-      wasted;                // 空放技能
+      (dist > 100 ? W.farPenalty : 0) - // Boss 战远离惩罚
+      wasted -               // 空放技能
+      0.001 * frames;        // 时间成本
     let done = false;
 
     if (this.player.state === 'dead') {
-      reward -= 15;
+      reward -= 5;
       done = true;
     } else if (enemiesAlive === 0) {
       if (this.scenario === 'waves') {
         if (this.waveIdx < 3) {
-          reward += 15;
-          this.spawnWave(this.waveIdx + 1);
-          this.prevEnemyTotalHp = this.enemyTotalHp();
+          // 清波奖励只在刚清完的那一刻给一次（否则变成无敌挂机农场）
+          if (this.advanceTarget < 0) {
+            reward += 5;
+            this.advanceTarget = this.player.centerX + 260;
+          }
         } else {
-          reward += 40 + this.player.hp * 0.1; // 通关 + 剩余血量加成（生存能力给分）
+          reward += 10 + this.player.hp * 0.02; // 通关 + 剩余血量加成
           done = true;
         }
       } else {
-        reward += 25 + this.player.hp * 0.1;
+        reward += 10 + this.player.hp * 0.02;
         done = true;
       }
     } else if (this.t >= maxTicks(this.scenario)) {
-      reward -= 5;
+      reward -= 2;
       done = true;
     }
+
+    // waves 推进阶段：向右走给进度奖励，到达即刷下一波
+    if (!done && this.scenario === 'waves' && this.advanceTarget > 0) {
+      const progress = this.player.centerX - this.prevCx;
+      if (progress > 0) reward += progress * 0.05;
+      if (this.player.centerX >= this.advanceTarget) {
+        this.advanceTarget = -1;
+        this.spawnWave(this.waveIdx + 1);
+        this.prevEnemyTotalHp = this.enemyTotalHp();
+      }
+    }
+    this.prevCx = this.player.centerX;
 
     this.prevPlayerHp = this.player.hp;
     this.prevEnemyTotalHp = this.enemyTotalHp();
