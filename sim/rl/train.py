@@ -14,7 +14,7 @@ from edo_env import EdoEnv, BatchVecEnv
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import EvalCallback
 
-from stable_baselines3.common.vec_env import VecNormalize
+from stable_baselines3.common.vec_env import VecNormalize, DummyVecEnv
 
 SCENARIO = sys.argv[1] if len(sys.argv) > 1 else "ashigaru"
 TOTAL_STEPS = int(sys.argv[2]) if len(sys.argv) > 2 else 500_000
@@ -36,7 +36,12 @@ def main():
         norm_obs=False,
         norm_reward=True,
     )
-    eval_env = EdoEnv(scenario=SCENARIO, session="evalcb")
+    eval_env = VecNormalize(
+        DummyVecEnv([lambda: EdoEnv(scenario=SCENARIO, session="evalcb")]),
+        norm_obs=False,
+        norm_reward=True,
+        training=False,
+    )
 
     eval_cb = EvalCallback(
         eval_env,
