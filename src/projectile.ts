@@ -41,7 +41,7 @@ export class Projectile {
   }
 }
 
-/** 敌方箭矢/钩索：水平射出，带轻微下坠（远距离能威胁地面目标） */
+/** 敌方箭矢/钩索/追踪箭 */
 export class Arrow {
   dead = false;
   vy = 0;
@@ -49,6 +49,7 @@ export class Arrow {
   readonly h = 3;
   readonly dmg: number;
   readonly pull: boolean;
+  readonly homing: boolean;
   private readonly ox: number; // 发射原点（钩索画锁链用）
   private readonly oy: number;
 
@@ -56,10 +57,11 @@ export class Arrow {
     public x: number,
     public y: number,
     public vx: number,
-    opts: { dmg?: number; pull?: boolean; origin?: { x: number; y: number } } = {},
+    opts: { dmg?: number; pull?: boolean; homing?: boolean; origin?: { x: number; y: number } } = {},
   ) {
     this.dmg = opts.dmg ?? 8;
     this.pull = opts.pull ?? false;
+    this.homing = opts.homing ?? false;
     this.ox = opts.origin?.x ?? x;
     this.oy = opts.origin?.y ?? y;
   }
@@ -68,12 +70,29 @@ export class Arrow {
     return { x: this.x - 7, y: this.y - 1.5, w: 14, h: 3 };
   }
 
-  update(stage: { width: number; groundY: number; platforms: Rect[] }): void {
-    this.x += this.vx;
-    if (!this.pull) {
-      // 箭矢带轻微下坠；钟馗钩锁链绷直，不受重力
-      this.vy += 0.05;
+  update(w: World): void {
+    const stage = w.stage;
+    if (this.homing) {
+      // 追踪：限速率转向（0.045 rad/帧），速度恒定 6
+      const speed = 6;
+      const cur = Math.atan2(this.vy, this.vx);
+      const tgt = Math.atan2(w.player.centerY - this.y, w.player.centerX - this.x);
+      let diff = tgt - cur;
+      while (diff > Math.PI) diff -= Math.PI * 2;
+      while (diff < -Math.PI) diff += Math.PI * 2;
+      const maxTurn = 0.045;
+      const ang = cur + Math.max(-maxTurn, Math.min(maxTurn, diff));
+      this.vx = Math.cos(ang) * speed;
+      this.vy = Math.sin(ang) * speed;
+      this.x += this.vx;
       this.y += this.vy;
+    } else {
+      this.x += this.vx;
+      if (!this.pull) {
+        // 箭矢带轻微下坠；钟馗钩锁链绷直，不受重力
+        this.vy += 0.05;
+        this.y += this.vy;
+      }
     }
     if (this.x < -20 || this.x > stage.width + 20 || this.y > stage.groundY) {
       this.dead = true;
@@ -125,7 +144,7 @@ export class Arrow {
     ctx.moveTo(tx, ty);
     ctx.lineTo(this.x, this.y);
     ctx.stroke();
-    ctx.fillStyle = '#f0f4ff'; // 箭头
+    ctx.fillStyle = this.homing ? '#ff6a80' : '#f0f4ff'; // 追踪箭红头警告
     ctx.fillRect(this.x - 1.5, this.y - 1.5, 3, 3);
     ctx.fillStyle = '#e05060'; // 尾羽
     ctx.fillRect(tx - 1.5, ty - 2.5, 3, 2);

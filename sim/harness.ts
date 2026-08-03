@@ -10,6 +10,7 @@ import { Player } from '../src/player';
 import { Enemy } from '../src/enemy';
 import { Flyer } from '../src/flyer';
 import { HookSoldier } from '../src/hooksoldier';
+import { Archer } from '../src/archer';
 import { Bruiser } from '../src/bruiser';
 import { Shaman } from '../src/shaman';
 import { Boss } from '../src/boss';
@@ -89,7 +90,7 @@ function step(w: World): void {
   w.enemies = w.enemies.filter((e) => !e.removable);
   for (const p of w.projectiles) p.update(w.stage.width);
   w.projectiles = w.projectiles.filter((p) => !p.dead);
-  for (const a of w.arrows) a.update(w.stage);
+  for (const a of w.arrows) a.update(w);
   w.arrows = w.arrows.filter((a) => !a.dead);
   for (const o of w.orbs) o.update(w);
   w.orbs = w.orbs.filter((o) => !o.dead);
@@ -344,6 +345,20 @@ function replayDeterminism(): Result {
   };
 }
 
+function archerHoming(): Result {
+  const { world, player, stage } = makeWorld();
+  player.x = 400;
+  player.y = stage.groundY - player.h;
+  // 弓箭手在玩家侧上方（模拟高台），追踪箭应能拐弯命中站桩玩家
+  world.enemies.push(new Archer(player.x + 300, stage.groundY - 34 - 60));
+  for (let i = 0; i < 600; i++) step(world);
+  return {
+    name: '弓箭手追踪箭能命中站桩玩家',
+    pass: player.hp < 100,
+    detail: `玩家HP=${player.hp}`,
+  };
+}
+
 // ———————————————— 运行 ————————————————
 
 const results: Result[] = [
@@ -356,6 +371,7 @@ const results: Result[] = [
   hookPull(),
   shamanPoison(),
   crowDive(),
+  archerHoming(),
   bossFight(),
   replayDeterminism(),
 ];

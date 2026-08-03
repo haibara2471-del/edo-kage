@@ -6,13 +6,12 @@ import type { World } from './world';
 
 type State = 'idle' | 'aim' | 'recover' | 'hit' | 'dead';
 
-const AIM_TIME = 35;      // 瞄准（拉弓）帧数，最后 12 帧闪白警告
-const RECOVER_TIME = 85;  // 放箭后的装填间隔
-const RANGE = 520;        // 索敌距离
-const LANE = 46;          // 只对高度相近的目标放箭（水平箭的"射界"）
-const ARROW_SPEED = 7.5;
+const AIM_TIME = 42;      // 瞄准（拉弓）帧数，最后 12 帧闪白警告
+const RECOVER_TIME = 140; // 追踪箭平衡：装填很慢
+const RANGE = 480;        // 索敌距离
+const ARROW_SPEED = 6;    // 追踪箭速度（转向 0.045 rad/帧由 Arrow 控制）
 
-/** 弓箭手：驻守高台的固定炮台，水平放箭。箭可跳过/瞬身穿，本体用镖射或爬台击杀 */
+/** 弓箭手：驻守高台的固定炮台，发射追踪箭（限转向速率，可走位/瞬身躲）。装填慢是大破绽 */
 export class Archer {
   readonly w = 20;
   readonly h = 34;
@@ -87,14 +86,13 @@ export class Archer {
     }
 
     const dx = player.centerX - this.centerX;
-    const inLane = Math.abs(player.centerY - (this.y + 12)) < LANE;
     const inRange = Math.abs(dx) < RANGE;
 
     switch (this.state) {
       case 'idle':
         if (player.state !== 'dead' && inRange) {
           this.facing = dx > 0 ? 1 : -1;
-          if (inLane && --this.timer <= 0) {
+          if (--this.timer <= 0) {
             this.state = 'aim';
             this.timer = AIM_TIME;
           }
@@ -106,7 +104,16 @@ export class Archer {
         if (--this.timer <= 0) {
           this.state = 'recover';
           this.timer = RECOVER_TIME;
-          w.arrows.push(new Arrow(this.centerX + this.facing * 14, this.y + 12, this.facing * ARROW_SPEED));
+          // 追踪箭：朝玩家当前位置发射，之后限速率转向
+          const tx = player.centerX - this.centerX;
+          const ty = player.centerY - (this.y + 12);
+          const d = Math.hypot(tx, ty) || 1;
+          const arrow = new Arrow(this.centerX + this.facing * 14, this.y + 12, (tx / d) * ARROW_SPEED, {
+            dmg: 8,
+            homing: true,
+          });
+          arrow.vy = (ty / d) * ARROW_SPEED;
+          w.arrows.push(arrow);
         }
         break;
 

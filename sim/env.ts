@@ -88,7 +88,7 @@ function maxTicks(scenario: Scenario): number {
     case 'ashigaru': return 1800;
     case 'wave1': return 3000;
     case 'waves': return 5400;
-    case 'boss': return 3600;
+    case 'boss': return 7200; // Boss 战放宽（谨慎风格也需要时间磨 200 血）
   }
 }
 
@@ -227,10 +227,18 @@ export class GameEnv {
     const killsNow = Math.max(0, this.prevEnemiesAlive - enemiesAlive);
     this.totalKills += killsNow;                                     // ③ 击杀
 
+    // Boss 血量里程碑：每打掉 50 血 +20（给清晰的进度梯度）
+    let milestone = 0;
+    if (this.scenario === 'boss') {
+      const before = Math.floor(this.prevEnemyTotalHp / 50);
+      const after = Math.floor(enemyHp / 50);
+      milestone = Math.max(0, before - after) * 20;
+    }
+
     // 奖励权重：Boss 战需要强进攻引导（否则收敛到"全场遛狗不输出"的和平主义）
     const W =
       this.scenario === 'boss'
-        ? { dealt: 1.5, taken: 0.5, kill: 50, farPenalty: 0.05 }
+        ? { dealt: 2.0, taken: 0.5, kill: 100, farPenalty: 0.05 }
         : { dealt: 0.5, taken: 1.0, kill: 3, farPenalty: 0 };
 
     // ④ 生存：不设过程奖励（每帧给分=鼓励挂机），只在通关时按剩余血量给分
@@ -238,6 +246,7 @@ export class GameEnv {
       dealt * W.dealt +     // ① 伤害
       comboBonus +           // ② combo
       killsNow * W.kill +    // ③ 击杀
+      milestone +            // Boss 血量里程碑
       approach * 0.01 -      // 逼近引导
       taken * W.taken -      // 受到伤害
       (dist > 100 ? W.farPenalty : 0) - // Boss 战远离惩罚（反遛狗）
@@ -295,7 +304,7 @@ export class GameEnv {
     w.enemies = w.enemies.filter((e) => !e.removable);
     for (const p of w.projectiles) p.update(w.stage.width);
     w.projectiles = w.projectiles.filter((p) => !p.dead);
-    for (const a of w.arrows) a.update(w.stage);
+    for (const a of w.arrows) a.update(w);
     w.arrows = w.arrows.filter((a) => !a.dead);
     for (const o of w.orbs) o.update(w);
     w.orbs = w.orbs.filter((o) => !o.dead);

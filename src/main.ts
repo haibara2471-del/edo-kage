@@ -217,7 +217,7 @@ function tick(): void {
   for (const p of world.projectiles) p.update(stage.width);
   world.projectiles = world.projectiles.filter((p) => !p.dead);
 
-  for (const a of world.arrows) a.update(stage);
+  for (const a of world.arrows) a.update(world);
   world.arrows = world.arrows.filter((a) => !a.dead);
 
   for (const o of world.orbs) o.update(world);
