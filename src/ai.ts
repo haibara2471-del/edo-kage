@@ -91,6 +91,9 @@ export class AiInput extends Input {
     return this.session !== null;
   }
 
+  private pending = false;
+  private decisionFrame = 0;
+
   override tick(): void {
     // 场上无敌：训练中不存在"安静期"，策略会摇摆——直接向右推进触发下一波
     if (this.world.enemies.every((e) => e.dead)) {
@@ -101,13 +104,18 @@ export class AiInput extends Input {
     }
     // Boss 场：训练决策是 2 帧/步（30Hz），普通场是 4 帧/步
     const isBoss = this.world.enemies.some((e) => e.codexId === 'boss');
-    if (this.session && this.frame % (isBoss ? 2 : 4) === 0) void this.decide();
+    const interval = isBoss ? 2 : 4;
+    if (this.session && this.frame >= this.decisionFrame + interval && !this.pending) {
+      this.decisionFrame = this.frame;
+      this.pending = true;
+      this.decide().finally(() => {
+        this.pending = false;
+      });
+    }
     super.tick();
   }
 
   private async decide(): Promise<void> {
-    if (this.deciding) return;
-    this.deciding = true;
     try {
       const obs = buildObs(this.world);
       const results = await this.session.run({ obs: new ort.Tensor('float32', obs, [1, OBS_SIZE]) });
@@ -118,8 +126,8 @@ export class AiInput extends Input {
         if (act === 'left' || act === 'right') this.held.add(act as Action);
         else this.buffer.push({ action: act as Action, frame: this.frame });
       }
-    } finally {
-      this.deciding = false;
+    } catch (e) {
+      console.error('AI 决策失败', e);
     }
   }
 }

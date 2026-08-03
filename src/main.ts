@@ -307,7 +307,10 @@ function render(): void {
     ctx.fillStyle = '#e8e4c8';
     ctx.font = '16px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText(replayError ? '回放加载失败（检查网络或 id）' : '加载回放中……', VIEW_W / 2, VIEW_H / 2);
+    ctx.fillText(
+      replayError ? '加载失败（检查网络/模型）' : AI_SPECTATE ? 'AI 模型加载中……' : '加载回放中……',
+      VIEW_W / 2, VIEW_H / 2,
+    );
     return;
   }
 
