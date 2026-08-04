@@ -163,7 +163,7 @@ export class Waves {
     }
     // 大门（红色大鸟居）：清完三波就能看见，走到门下触发守门战
     if (this.wave >= this.total && this.phase !== 'done') {
-      this.drawGate(ctx, 2630, groundY, t);
+      this.drawGate(ctx, 2590, groundY, t);
     }
   }
 
@@ -171,31 +171,31 @@ export class Waves {
   private drawGate(ctx: CanvasRenderingContext2D, x: number, groundY: number, t: number): void {
     const open = this.phase === 'gateopen';
     ctx.fillStyle = '#b03040';
-    // 两根粗主柱（更高）
-    ctx.fillRect(x, groundY - 260, 11, 260);
-    ctx.fillRect(x + 79, groundY - 260, 11, 260);
+    // 两根粗主柱（更高更宽）
+    ctx.fillRect(x, groundY - 270, 12, 270);
+    ctx.fillRect(x + 118, groundY - 270, 12, 270);
     ctx.fillStyle = '#c84850';
-    ctx.fillRect(x + 3, groundY - 260, 4, 260);
-    ctx.fillRect(x + 82, groundY - 260, 4, 260);
-    // 笠木（上弧横梁，外展）
+    ctx.fillRect(x + 3, groundY - 270, 4, 270);
+    ctx.fillRect(x + 121, groundY - 270, 4, 270);
+    // 笠木（上弧横梁，外展更宽）
     ctx.fillStyle = '#c84850';
     ctx.beginPath();
-    ctx.moveTo(x - 22, groundY - 266);
-    ctx.quadraticCurveTo(x + 45, groundY - 306, x + 112, groundY - 266);
-    ctx.lineTo(x + 112, groundY - 252);
-    ctx.quadraticCurveTo(x + 45, groundY - 292, x - 22, groundY - 252);
+    ctx.moveTo(x - 32, groundY - 276);
+    ctx.quadraticCurveTo(x + 59, groundY - 318, x + 168, groundY - 276);
+    ctx.lineTo(x + 168, groundY - 260);
+    ctx.quadraticCurveTo(x + 59, groundY - 302, x - 32, groundY - 260);
     ctx.closePath();
     ctx.fill();
     // 岛木（下横梁）
     ctx.fillStyle = '#b03040';
-    ctx.fillRect(x - 10, groundY - 232, 110, 7);
+    ctx.fillRect(x - 14, groundY - 240, 158, 8);
     // 匾额
     ctx.fillStyle = '#1c2440';
-    ctx.fillRect(x + 8, groundY - 224, 74, 14);
+    ctx.fillRect(x + 22, groundY - 231, 74, 15);
     ctx.fillStyle = '#e8d8a0';
-    ctx.font = 'bold 13px "Yu Mincho","MS Mincho",serif';
+    ctx.font = 'bold 14px "Yu Mincho","MS Mincho",serif';
     ctx.textAlign = 'center';
-    ctx.fillText('試練の門', x + 45, groundY - 213);
+    ctx.fillText('試練の門', x + 59, groundY - 219);
 
     if (open) {
       // 开启：门内泛光 + 符咒上浮

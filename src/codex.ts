@@ -112,6 +112,8 @@ type Page = 'skills' | 'monsters';
 export class Codex {
   private seen = new Set<CodexId>();
   private page: Page = 'skills';
+  private monsterPage = 0; // 敌人页分页（条目超过一屏时）
+  private readonly MONSTERS_PER_PAGE = 8;
 
   constructor() {
     try {
@@ -132,6 +134,13 @@ export class Codex {
   update(input: Input): boolean {
     if (input.consume('left') || input.consume('right')) {
       this.page = this.page === 'skills' ? 'monsters' : 'skills';
+      this.monsterPage = 0;
+    }
+    // 敌人页分页：W/U 翻页（8 个/页，超出屏幕的新 Boss 在第 2 页可见）
+    if (this.page === 'monsters') {
+      const nPages = Math.max(1, Math.ceil(ENTRIES.length / this.MONSTERS_PER_PAGE));
+      if (input.consume('jump')) this.monsterPage = (this.monsterPage + 1) % nPages;
+      if (input.consume('skillU')) this.monsterPage = (this.monsterPage - 1 + nPages) % nPages;
     }
     return input.consume('codex') || input.consume('attack');
   }
@@ -171,7 +180,10 @@ export class Codex {
       ctx.fillStyle = '#ffd24a';
       ctx.font = '12px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('— A/D 翻页 · 按 B 关闭 —', W / 2, H - 18);
+      ctx.fillText(
+        this.page === 'monsters' ? '— A/D 切页 · W/U 翻敌人页 · 按 B 关闭 —' : '— A/D 切页 · 按 B 关闭 —',
+        W / 2, H - 18,
+      );
     }
   }
 
@@ -232,7 +244,11 @@ export class Codex {
     const x0 = (W - totalW) / 2;
     const y0 = 118;
 
-    ENTRIES.forEach((e, i) => {
+    const pageEntries = ENTRIES.slice(
+      this.monsterPage * this.MONSTERS_PER_PAGE,
+      (this.monsterPage + 1) * this.MONSTERS_PER_PAGE,
+    );
+    pageEntries.forEach((e, i) => {
       const col = i % cols;
       const row = Math.floor(i / cols);
       const x = x0 + col * (cardW + gap);
@@ -306,5 +322,14 @@ export class Codex {
         ctx.fillText('？？？', x + cardW / 2, y + 134);
       }
     });
+
+    // 页码（条目多于一屏时显示）
+    const nPages = Math.max(1, Math.ceil(ENTRIES.length / this.MONSTERS_PER_PAGE));
+    if (nPages > 1) {
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.font = '12px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(`第 ${this.monsterPage + 1} / ${nPages} 页 · W/U 翻页`, W / 2, y0 + 2 * (cardH + gap) + 16);
+    }
   }
 }

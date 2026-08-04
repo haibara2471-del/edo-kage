@@ -10,11 +10,11 @@ interface RockBump { dx: number; rx: number; ry: number; }
  * 松树石灯笼 / 苔庭假山 / 可站立的櫓
  */
 export class Stage {
-  readonly width: number = 2750;
+  readonly width: number;
   readonly groundY = 480;
 
   /** 地面连续无间断（v0.16 移除飞索与深沟） */
-  readonly grounds: { x0: number; x1: number }[] = [{ x0: 0, x1: 2750 }];
+  readonly grounds: { x0: number; x1: number }[];
 
   private readonly _platforms: Rect[] = [
     { x: 380, y: 362, w: 130, h: 16 },
@@ -40,7 +40,10 @@ export class Stage {
   private pines: { x: number; s: number }[] = [];
   private lanterns: { x: number }[] = [];
 
-  constructor() {
+  /** 宽度可配：游戏本体 4150（第三波后还有塔区域），RL 环境用默认 2750 保持 obs 归一化不变 */
+  constructor(width = 2750) {
+    this.width = width;
+    this.grounds = [{ x0: 0, x1: width }];
     for (let i = 0; i < 70; i++) {
       this.stars.push({ x: Math.random() * this.width, y: Math.random() * 200, r: Math.random() < 0.2 ? 2 : 1 });
     }

@@ -4,10 +4,13 @@ import { MaiBoss } from './boss-mai';
 import { MusashiBoss } from './boss-musashi';
 import type { World } from './world';
 
-/** 塔竞技场边界：左墙可见石墙，右墙即舞台尽头（无隐形空气墙） */
-const ARENA_L = 2300;
-const ARENA_R = 2750;
-const ARENA_CX = (ARENA_L + ARENA_R) / 2; // 2525
+/** 塔竞技场：每层独立物理位置（2800+ 塔区，穿过大门真正"再往前走"），左墙可见石墙，右墙即舞台尽头 */
+const FLOOR_ARENAS = [
+  { L: 2840, R: 3160 },  // 第1层 真龙
+  { L: 3220, R: 3520 },  // 第2层 橘右京
+  { L: 3580, R: 3880 },  // 第3层 不知火舞
+  { L: 3940, R: 4150 },  // 第4层 宫本武藏（塔顶）
+];
 const FLOOR_NAMES = ['真龍', '橘右京', '不知火舞', '宮本武藏'];
 
 /**
@@ -32,15 +35,17 @@ export class Tower {
     return `試練 第${this.floor + 1}層 · ${FLOOR_NAMES[this.floor]}`;
   }
 
-  /** 塔内固定相机：竞技场居中（不随玩家平移，营造独立 Boss 房） */
-  get camX(): number { return ARENA_CX - 480; }
+  get arenaL(): number { return FLOOR_ARENAS[this.floor].L; }
+  get arenaR(): number { return FLOOR_ARENAS[this.floor].R; }
+  /** 塔内固定相机：当前层竞技场居中（不随玩家平移，营造独立 Boss 房） */
+  get camX(): number { return (this.arenaL + this.arenaR) / 2 - 480; }
 
   /** 从第 floor 层开始爬塔（0 起） */
   start(w: World, floor: number): void {
     this.floor = Math.max(0, Math.min(this.total - 1, floor));
     this.active = true;
-    this.barrierL = ARENA_L;
-    this.barrierR = ARENA_R;
+    this.barrierL = this.arenaL;
+    this.barrierR = this.arenaR;
     w.stage.platformsOverride = []; // 平地 Boss 房：舞台隐形平台不再实体化
     this.respawn = -1;
     this.enterFloor(w, false);
@@ -49,11 +54,11 @@ export class Tower {
   private enterFloor(w: World, fullHeal: boolean): void {
     w.enemies = w.enemies.filter((e) => e.dead);
     w.enemies = [];
-    const cx = (ARENA_L + ARENA_R) / 2;
+    const cx = (this.arenaL + this.arenaR) / 2;
     const gy = w.stage.groundY;
 
     // 玩家复位到竞技场左侧
-    w.player.x = ARENA_L + 30;
+    w.player.x = this.arenaL + 30;
     w.player.y = gy - w.player.h;
     w.player.vx = 0;
     w.player.vy = 0;
@@ -147,21 +152,23 @@ export class Tower {
 
   /** 塔内竞技场：石砖地板 + 左右可见石墙（不再有隐形空气墙） */
   drawArena(ctx: CanvasRenderingContext2D, camX: number, viewW: number, groundY: number, t: number): void {
-    // 地板（竞技场范围，其余为背景石室）
+    const L = this.arenaL;
+    const R = this.arenaR;
+    // 地板（当前层竞技场范围，其余为背景石室）
     ctx.fillStyle = '#3a3a48';
-    ctx.fillRect(ARENA_L, groundY, ARENA_R - ARENA_L, 46);
+    ctx.fillRect(L, groundY, R - L, 46);
     ctx.fillStyle = '#4a4a58';
-    ctx.fillRect(ARENA_L, groundY, ARENA_R - ARENA_L, 3);
+    ctx.fillRect(L, groundY, R - L, 3);
     ctx.strokeStyle = '#2e2e3a';
     ctx.lineWidth = 1;
-    for (let x = ARENA_L; x < ARENA_R; x += 34) {
+    for (let x = L; x < R; x += 34) {
       ctx.beginPath();
       ctx.moveTo(x, groundY);
       ctx.lineTo(x, groundY + 46);
       ctx.stroke();
     }
     // 左右石墙（可见边界，替代隐形空气墙）
-    for (const wx of [ARENA_L, ARENA_R]) {
+    for (const wx of [L, R]) {
       ctx.fillStyle = '#4a4658';
       ctx.fillRect(wx - 6, groundY - 224, 12, 224);
       ctx.fillStyle = '#3a3846';
