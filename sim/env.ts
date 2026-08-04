@@ -291,28 +291,61 @@ export class GameEnv {
       if (this.player.state === 'dead') break;
     }
 
-    // —— Self-play Reward：胜负 + 造成伤害 ——
+    // —— 胜利导向 Reward（v0.42）：重赏击杀/通关/生存，重罚承伤/死亡 ——
     const enemyHp = this.enemyTotalHp();
+    const dealt = Math.max(0, this.prevEnemyTotalHp - enemyHp);
+    this.recentDmg.push(dealt);
+    if (this.recentDmg.length > 12) this.recentDmg.shift();
+    const windowDmg = this.recentDmg.reduce((s, d) => s + d, 0);
+
     const hits = this.world.lastHits;
-    let damageReward = 0;
-    for (const h of hits) damageReward += h.dmg * 0.001;
+    let bladeDmg = 0;
+    let skillDmg = 0;
+    for (const h of hits) {
+      if (h.src === 'blade') bladeDmg += h.dmg;
+      else skillDmg += h.dmg;
+    }
     this.world.lastHits = [];
+    const damageReward = bladeDmg * 1.0 + skillDmg * 0.5;
+
+    const taken = Math.max(0, this.prevPlayerHp - this.player.hp);
+    const hpRatio = Math.max(0.1, this.player.hp / 100);
+    const damageScale = 1 + 2 * (1 - hpRatio); // 满血 1x / 半血 2x / 残血 3x
+    const takenPenalty = taken * 0.1 * damageScale;
 
     const enemiesAlive = this.world.enemies.length;
     const killsNow = Math.max(0, this.prevEnemiesAlive - enemiesAlive);
     this.totalKills += killsNow;
 
-    let reward = damageReward;
+    const frames = this.scenario === 'boss' ? 2 : 4;
+    const inactivityPenalty = (enemiesAlive > 0 && windowDmg < 0.1) ? -0.03 : 0;
+
+    let reward =
+      damageReward +       // 输出伤害（刀/技能/飞镖）
+      killsNow * 100 -     // 击杀重赏：让清场成为绝对主导信号
+      takenPenalty +       // 承伤惩罚翻倍：残血时更怕挨打
+      0.05 * frames +      // 时间惩罚：逼 AI 主动找正回报
+      inactivityPenalty;   // 活跃惩罚：防站桩
     let done = false;
 
     if (this.player.state === 'dead') {
-      reward -= 10;
+      reward -= 50; // 死亡重罚
       done = true;
     } else if (enemiesAlive === 0) {
-      reward += 10; // 通关/击败镜像
-      done = true;
+      if (this.scenario === 'waves') {
+        if (this.waveIdx < 3) {
+          // 清波后要求向右推进触发下一波（环境构成，与 reward 无关）
+          this.advanceTarget = this.player.centerX + 260;
+        } else {
+          reward += 50 + this.player.hp * 0.02; // 通关重赏 + 剩余血量加成
+          done = true;
+        }
+      } else {
+        reward += 50 + this.player.hp * 0.02; // 通关重赏
+        done = true;
+      }
     } else if (this.t >= maxTicks(this.scenario)) {
-      reward -= 10; // timeout = fail
+      reward -= 50; // timeout = fail
       done = true;
     }
 
