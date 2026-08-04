@@ -161,9 +161,13 @@ export class Waves {
       if (x === null) continue;
       this.drawBarrier(ctx, x, groundY, t);
     }
-    // 大门（红色大鸟居）：清完三波就能看见，走到门下触发守门战
-    if (this.wave >= this.total && this.phase !== 'done') {
-      this.drawGate(ctx, 2590, groundY, t);
+    // 大门（红色大鸟居）：第三波战斗中不可见，清完第三波往前走才出现
+    const gateVisible =
+      (this.phase === 'advance' && this.wave >= this.total) ||
+      this.phase === 'gatefight' ||
+      this.phase === 'gateopen';
+    if (gateVisible) {
+      this.drawGate(ctx, 2585, groundY, t);
     }
   }
 
@@ -172,30 +176,30 @@ export class Waves {
     const open = this.phase === 'gateopen';
     ctx.fillStyle = '#b03040';
     // 两根粗主柱（更高更宽）
-    ctx.fillRect(x, groundY - 270, 12, 270);
-    ctx.fillRect(x + 118, groundY - 270, 12, 270);
+    ctx.fillRect(x, groundY - 280, 13, 280);
+    ctx.fillRect(x + 177, groundY - 280, 13, 280);
     ctx.fillStyle = '#c84850';
-    ctx.fillRect(x + 3, groundY - 270, 4, 270);
-    ctx.fillRect(x + 121, groundY - 270, 4, 270);
+    ctx.fillRect(x + 3, groundY - 280, 4, 280);
+    ctx.fillRect(x + 180, groundY - 280, 4, 280);
     // 笠木（上弧横梁，外展更宽）
     ctx.fillStyle = '#c84850';
     ctx.beginPath();
-    ctx.moveTo(x - 32, groundY - 276);
-    ctx.quadraticCurveTo(x + 59, groundY - 318, x + 168, groundY - 276);
-    ctx.lineTo(x + 168, groundY - 260);
-    ctx.quadraticCurveTo(x + 59, groundY - 302, x - 32, groundY - 260);
+    ctx.moveTo(x - 48, groundY - 286);
+    ctx.quadraticCurveTo(x + 88, groundY - 330, x + 252, groundY - 286);
+    ctx.lineTo(x + 252, groundY - 268);
+    ctx.quadraticCurveTo(x + 88, groundY - 312, x - 48, groundY - 268);
     ctx.closePath();
     ctx.fill();
     // 岛木（下横梁）
     ctx.fillStyle = '#b03040';
-    ctx.fillRect(x - 14, groundY - 240, 158, 8);
+    ctx.fillRect(x - 21, groundY - 247, 237, 9);
     // 匾额
     ctx.fillStyle = '#1c2440';
-    ctx.fillRect(x + 22, groundY - 231, 74, 15);
+    ctx.fillRect(x + 51, groundY - 237, 74, 15);
     ctx.fillStyle = '#e8d8a0';
     ctx.font = 'bold 14px "Yu Mincho","MS Mincho",serif';
     ctx.textAlign = 'center';
-    ctx.fillText('試練の門', x + 59, groundY - 219);
+    ctx.fillText('試練の門', x + 88, groundY - 225);
 
     if (open) {
       // 开启：门内泛光 + 符咒上浮
