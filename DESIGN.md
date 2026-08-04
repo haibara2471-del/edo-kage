@@ -352,6 +352,7 @@
   3. **钩使：射程阈值 + 拉回当前位置**：`HOOK_RANGE` 260→200；飞钩超过 `HOOK_RANGE+40px` 即断链（`Arrow.maxDist`）；命中后**拉向钩使当前位置**而非出钩原点（`Arrow.pullTarget` + `combat.ts` 按 target.centerX 定向）
   4. **人物头顶迷你血条/气条**：`ui.ts drawPlayerBars`（世界坐标跟随人物，死亡不画），`main.ts` 在 `player.draw` 后调用
   5. **飞镖方向锁定按下瞬间朝向**：`Input` 缓冲记录按下时的 `facing`（`setFacingSource` + `consumeDir`），先按镖再转身，镖仍朝按下方向飞；AI 输入返回 `dir:0` 用当前朝向，行为不变
+  6. **弓箭手击退后急停**：`integrate()` 无水平摩擦，弓箭手被打后 `takeHit` 设的 vx 会永久保留 → 一路滑进角落。修复：hit 状态结束时 `vx=0`（足轻/钩使靠 chase 状态每帧覆盖 vx 无此问题）
 
 ## 10. TODO / backlog
 

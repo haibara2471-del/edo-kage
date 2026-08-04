@@ -81,7 +81,10 @@ export class Archer {
     if (this.state === 'hit') {
       this.timer--;
       integrate(this, stage);
-      if (this.timer <= 0) this.state = 'idle';
+      if (this.timer <= 0) {
+        this.state = 'idle';
+        this.vx = 0; // 击退后急停：integrate 无水平摩擦，不清 vx 会一路滑进角落（玩家反馈）
+      }
       return;
     }
 
