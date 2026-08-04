@@ -113,4 +113,6 @@ stage 7  Boss + 双钩使（真 Boss 战）
 - [x] 用 1+2+3（VecNormalize + [512,512] + n_steps=2048 + ent=0.05）重新训练 waves 300 万步
 - [x] worktree 并行验证方案 4：稀疏奖励
 - [x] 用 `ai-analyze.ts` 对比两组模型
-- [ ] 用 ppo_wave1 迁移初始化 + 低学习率 fine-tune waves，引入已学会的战斗先验
+- [ ] 添加 `random` 训练场景：每局随机敌人组合，训练通用战斗能力
+- [ ] 用 random 场景训练 100 万步，waves 当泛化测试
+- [ ] 用 `ai-analyze.ts` 评估模型在固定 waves 上的表现

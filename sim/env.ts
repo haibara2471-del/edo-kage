@@ -14,10 +14,10 @@ import { Shaman } from '../src/shaman';
 import { Effects } from '../src/effects';
 import { Codex } from '../src/codex';
 import { resolveCombat } from '../src/combat';
-import { reseed } from '../src/rng';
+import { reseed, rand } from '../src/rng';
 import type { World } from '../src/world';
 
-export type Scenario = 'ashigaru' | 'wave1' | 'waves' | 'boss' | 'bossEasy' | 'flyers' | 'bossSquad' | 'shurikenOnly';
+export type Scenario = 'ashigaru' | 'wave1' | 'waves' | 'random' | 'boss' | 'bossEasy' | 'flyers' | 'bossSquad' | 'shurikenOnly';
 
 /** 直接注入式输入（每帧可设置按住集合 + 点按） */
 class EnvInput {
@@ -80,6 +80,7 @@ function maxTicks(scenario: Scenario): number {
     case 'ashigaru': return 1800;
     case 'wave1': return 3000;
     case 'waves': return 5400;
+    case 'random': return 3600;
     case 'boss': return 7200; // Boss 战放宽（谨慎风格也需要时间磨 200 血）
     case 'bossEasy': return 5400;
     case 'flyers': return 3000;
@@ -145,6 +146,8 @@ export class GameEnv {
       }
     } else if (this.scenario === 'waves') {
       this.spawnWave(1);
+    } else if (this.scenario === 'random') {
+      this.spawnRandom();
     } else if (this.scenario === 'boss') {
       world.enemies.push(new Boss(this.player.x + 90, stage.groundY - 40));
     } else if (this.scenario === 'bossEasy') {
@@ -208,6 +211,35 @@ export class GameEnv {
       E.push(new Archer(px - 320, gy - 34));
       E.push(new Bruiser(px + 260, gy - 46));
       E.push(new Shaman(px + 400, gy - 32));
+    }
+  }
+
+  /** 随机战斗场景：每 reset 随机生成敌人数量/类型/位置，逼模型学通用 1vN 战斗 */
+  private spawnRandom(): void {
+    const stage = this.world.stage;
+    const px = this.player.centerX;
+    const gy = stage.groundY;
+    const E = this.world.enemies;
+
+    const enemyCount = 2 + Math.floor(rand() * 4); // 2~5 个敌人
+    const pool = ['ashigaru', 'ashigaru', 'archer', 'hook', 'crow', 'bat'] as const;
+
+    for (let i = 0; i < enemyCount; i++) {
+      const type = pool[Math.floor(rand() * pool.length)];
+      const side = rand() > 0.5 ? 1 : -1;
+      const dist = 220 + Math.floor(rand() * 380); // 220~600px
+      const x = px + side * dist;
+      if (type === 'ashigaru') {
+        E.push(Enemy.ashigaru(x, gy));
+      } else if (type === 'archer') {
+        E.push(new Archer(x, gy - 34));
+      } else if (type === 'hook') {
+        E.push(new HookSoldier(x, gy - 34));
+      } else if (type === 'crow') {
+        E.push(new Flyer(x, gy - 140 - Math.floor(rand() * 100), 'crow'));
+      } else if (type === 'bat') {
+        E.push(new Flyer(x, gy - 120 - Math.floor(rand() * 100), 'bat'));
+      }
     }
   }
 

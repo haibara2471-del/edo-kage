@@ -23,7 +23,7 @@ const server = createServer(async (req, res) => {
   try {
     if (req.url === '/meta' && req.method === 'GET') {
       const e = new GameEnv('ashigaru');
-      res.end(JSON.stringify({ obsSize: e.obsSize, actionCount: e.actionCount, scenarios: ['ashigaru', 'wave1', 'waves', 'boss', 'bossEasy', 'flyers', 'bossSquad', 'shurikenOnly'] }));
+      res.end(JSON.stringify({ obsSize: e.obsSize, actionCount: e.actionCount, scenarios: ['ashigaru', 'wave1', 'waves', 'random', 'boss', 'bossEasy', 'flyers', 'bossSquad', 'shurikenOnly'] }));
       return;
     }
 
