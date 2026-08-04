@@ -17,7 +17,7 @@ import { resolveCombat } from '../src/combat';
 import { reseed, rand } from '../src/rng';
 import type { World } from '../src/world';
 
-export type Scenario = 'ashigaru' | 'wave1' | 'waves' | 'random' | 'boss' | 'bossEasy' | 'flyers' | 'bossSquad' | 'shurikenOnly';
+export type Scenario = 'ashigaru' | 'wave1' | 'waves' | 'boss' | 'bossEasy' | 'flyers' | 'bossSquad' | 'shurikenOnly' | 'random';
 
 /** 直接注入式输入（每帧可设置按住集合 + 点按） */
 class EnvInput {
@@ -80,12 +80,12 @@ function maxTicks(scenario: Scenario): number {
     case 'ashigaru': return 1800;
     case 'wave1': return 3000;
     case 'waves': return 5400;
-    case 'random': return 3600;
     case 'boss': return 7200; // Boss 战放宽（谨慎风格也需要时间磨 200 血）
     case 'bossEasy': return 5400;
     case 'flyers': return 3000;
     case 'bossSquad': return 7200;
     case 'shurikenOnly': return 2400;
+    case 'random': return 3000;
   }
 }
 
@@ -146,8 +146,6 @@ export class GameEnv {
       }
     } else if (this.scenario === 'waves') {
       this.spawnWave(1);
-    } else if (this.scenario === 'random') {
-      this.spawnRandom();
     } else if (this.scenario === 'boss') {
       world.enemies.push(new Boss(this.player.x + 90, stage.groundY - 40));
     } else if (this.scenario === 'bossEasy') {
@@ -171,6 +169,27 @@ export class GameEnv {
       world.enemies.push(new Flyer(this.player.x - 160, stage.groundY - 220, 'crow', { passive: true }));
       world.enemies.push(new Flyer(this.player.x + 160, stage.groundY - 220, 'crow', { passive: true }));
       // 不刷近战怪，逼它必须用镖
+    } else if (this.scenario === 'random') {
+      // 随机战斗：2~5 个敌人，类型/方向/距离全随机，训练通用战斗而非过拟合固定波次
+      const count = 2 + Math.floor(rand() * 4); // 2..5
+      const types = ['ashigaru', 'archer', 'hook', 'crow', 'bat'] as const;
+      for (let i = 0; i < count; i++) {
+        const type = types[Math.floor(rand() * types.length)];
+        const side = rand() < 0.5 ? -1 : 1;
+        const dist = 220 + rand() * 380; // 220..600
+        const x = this.player.x + side * dist;
+        if (type === 'ashigaru') {
+          world.enemies.push(Enemy.ashigaru(x, stage.groundY));
+        } else if (type === 'archer') {
+          world.enemies.push(new Archer(x, stage.groundY - 34));
+        } else if (type === 'hook') {
+          world.enemies.push(new HookSoldier(x, stage.groundY - 34));
+        } else if (type === 'crow') {
+          world.enemies.push(new Flyer(x, stage.groundY - 200 - rand() * 60, 'crow'));
+        } else if (type === 'bat') {
+          world.enemies.push(new Flyer(x, stage.groundY - 170 - rand() * 50, 'bat'));
+        }
+      }
     }
 
     this.t = 0;
@@ -214,35 +233,6 @@ export class GameEnv {
     }
   }
 
-  /** 随机战斗场景：每 reset 随机生成敌人数量/类型/位置，逼模型学通用 1vN 战斗 */
-  private spawnRandom(): void {
-    const stage = this.world.stage;
-    const px = this.player.centerX;
-    const gy = stage.groundY;
-    const E = this.world.enemies;
-
-    const enemyCount = 2 + Math.floor(rand() * 4); // 2~5 个敌人
-    const pool = ['ashigaru', 'ashigaru', 'archer', 'hook', 'crow', 'bat'] as const;
-
-    for (let i = 0; i < enemyCount; i++) {
-      const type = pool[Math.floor(rand() * pool.length)];
-      const side = rand() > 0.5 ? 1 : -1;
-      const dist = 220 + Math.floor(rand() * 380); // 220~600px
-      const x = px + side * dist;
-      if (type === 'ashigaru') {
-        E.push(Enemy.ashigaru(x, gy));
-      } else if (type === 'archer') {
-        E.push(new Archer(x, gy - 34));
-      } else if (type === 'hook') {
-        E.push(new HookSoldier(x, gy - 34));
-      } else if (type === 'crow') {
-        E.push(new Flyer(x, gy - 140 - Math.floor(rand() * 100), 'crow'));
-      } else if (type === 'bat') {
-        E.push(new Flyer(x, gy - 120 - Math.floor(rand() * 100), 'bat'));
-      }
-    }
-  }
-
   step(actionIdx: number): { obs: number[]; reward: number; done: boolean; info: Record<string, number> } {
     const input = this.input;
     const combo = ACTIONS[actionIdx] ?? [];
@@ -267,7 +257,11 @@ export class GameEnv {
     // —— 通用 Reward（6 项，只衡量打得怎么样，不管打的是谁） ——
     const enemyHp = this.enemyTotalHp();
     const dealt = Math.max(0, this.prevEnemyTotalHp - enemyHp);   // ① 输出伤害
-    const taken = Math.max(0, this.prevPlayerHp - this.player.hp); // ② 承受伤害
+    // ② 承受伤害：血量越低惩罚越大，满血时 1x、半血 2x、残血 3x
+    const taken = Math.max(0, this.prevPlayerHp - this.player.hp);
+    const hpRatio = Math.max(0.1, this.player.hp / 100);
+    const damageScale = 1 + 2 * (1 - hpRatio);
+    const takenPenalty = taken * 0.05 * damageScale;
     const dist = this.nearestEnemyDist();
 
     // ⑥ 单位时间输出（combo）：最近 12 步（0.8s）命中伤害 ≥15 持续给
@@ -283,7 +277,7 @@ export class GameEnv {
       if (h.src === 'blade') bladeDmg += h.dmg;
       else skillDmg += h.dmg;
     }
-    dealtReward = bladeDmg * 0.5 + skillDmg * 0.1; // 刀×0.5 / 技能×0.1：远程几乎不给直接收益，逼近战
+    dealtReward = bladeDmg * 1.0 + skillDmg * 0.5; // 刀重赏 / 技能与飞镖也有收益，但近战更高效
     this.world.lastHits = [];
 
     // ⑥ combo 多样性：最近 12 步（0.8s）内由 ≥2 种不同来源造成的累计伤害 ≥10
@@ -312,17 +306,17 @@ export class GameEnv {
     const inactivityPenalty = (enemiesAlive > 0 && windowDmg < 0.1) ? -0.03 : 0;
 
     let reward =
-      dealtReward +          // ① 输出伤害（分来源）
-      killsNow * 5 -         // ③ 击杀
-      taken * 0.05 -         // ② 承受伤害（轻罚，不再压制近战换血）
-      - 0.01 * frames +       // ⑤ 通关速度（大幅提惩罚，逼 AI 必须找正回报）
+      dealtReward +          // ① 输出伤害（刀/技能/飞镖）
+      killsNow * 20 -        // ③ 击杀重赏
+      takenPenalty +         // ② 承受伤害（血量越低惩罚越大）
+      0.05 * frames +        // ⑤ 时间惩罚（大幅提高，逼 AI 必须主动找正回报）
       comboBonus +           // ⑥ combo 多样性
       kiReward +             // ⑦ 气经济
       inactivityPenalty;     // ⑧ 活跃惩罚
     let done = false;
 
     if (this.player.state === 'dead') {
-      reward -= 5;
+      reward -= 20;
       done = true;
     } else if (enemiesAlive === 0) {
       if (this.scenario === 'waves') {
