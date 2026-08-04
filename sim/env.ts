@@ -254,69 +254,22 @@ export class GameEnv {
       if (this.player.state === 'dead') break;
     }
 
-    // —— 通用 Reward（6 项，只衡量打得怎么样，不管打的是谁） ——
+    // —— 极简 Reward（AlphaGo-style sparse）：只保留胜负 + 造成伤害 ——
     const enemyHp = this.enemyTotalHp();
-    const dealt = Math.max(0, this.prevEnemyTotalHp - enemyHp);   // ① 输出伤害
-    // ② 承受伤害：血量越低惩罚越大，满血时 1x、半血 2x、残血 3x
-    const taken = Math.max(0, this.prevPlayerHp - this.player.hp);
-    const hpRatio = Math.max(0.1, this.player.hp / 100);
-    const damageScale = 1 + 2 * (1 - hpRatio);
-    const takenPenalty = taken * 0.05 * damageScale;
-    const dist = this.nearestEnemyDist();
-
-    // ⑥ 单位时间输出（combo）：最近 12 步（0.8s）命中伤害 ≥15 持续给
-    this.recentDmg.push(dealt);
-    if (this.recentDmg.length > 12) this.recentDmg.shift();
-
-    // ① 输出伤害：分来源系数（技能溢价，鼓励有气时用技能）
     const hits = this.world.lastHits;
-    let dealtReward = 0;
-    let bladeDmg = 0;
-    let skillDmg = 0;
-    for (const h of hits) {
-      if (h.src === 'blade') bladeDmg += h.dmg;
-      else skillDmg += h.dmg;
-    }
-    dealtReward = bladeDmg * 1.0 + skillDmg * 0.5; // 刀重赏 / 技能与飞镖也有收益，但近战更高效
+    let damageReward = 0;
+    for (const h of hits) damageReward += h.dmg * 0.001;
     this.world.lastHits = [];
-
-    // ⑥ combo 多样性：最近 12 步（0.8s）内由 ≥2 种不同来源造成的累计伤害 ≥10
-    const srcWindow = this.recentSrc;
-    for (const h of hits) srcWindow.push(h.src);
-    if (srcWindow.length > 36) srcWindow.splice(0, srcWindow.length - 36); // 约 12 步
-    const srcSet = new Set(srcWindow);
-    const windowDmg = this.recentDmg.reduce((s, d) => s + d, 0);
-    const comboBonus = srcSet.size >= 2 && windowDmg >= 10 ? 0.1 : 0;
-    this.comboPeak = Math.max(this.comboPeak, windowDmg);
 
     const enemiesAlive = this.world.enemies.length;
     const killsNow = Math.max(0, this.prevEnemiesAlive - enemiesAlive);
-    this.totalKills += killsNow;                                     // ③ 击杀（杀谁都行）
+    this.totalKills += killsNow;
 
-    // ④ 被控制次数：进入 hit 硬直状态（受击/击退/被钩拉）
-    const wasHit = this.prevState !== 'hit' && this.player.state === 'hit' ? 1 : 0;
-    this.hitCount += wasHit;
-
-    // ⑦ 气经济：回气奖励，耗气惩罚（与命中脱钩，命中奖励由 dealtReward 单独给）
-    const kiNow = this.player.ki;
-    const kiDelta = kiNow - this.prevKi; // 正=回气 负=耗气
-    const kiReward = kiDelta > 0 ? kiDelta * 0.1 : kiDelta * 0.5; // 回气+0.1/气，耗气-0.5/气（spam 成本极高）
-
-    // ⑧ 活跃惩罚：场上有敌人但最近 12 步（~0.8s）完全没输出 → 额外扣，打破站原地 spam 局部最优
-    const inactivityPenalty = (enemiesAlive > 0 && windowDmg < 0.1) ? -0.03 : 0;
-
-    let reward =
-      dealtReward +          // ① 输出伤害（刀/技能/飞镖）
-      killsNow * 20 -        // ③ 击杀重赏
-      takenPenalty +         // ② 承受伤害（血量越低惩罚越大）
-      0.05 * frames +        // ⑤ 时间惩罚（大幅提高，逼 AI 必须主动找正回报）
-      comboBonus +           // ⑥ combo 多样性
-      kiReward +             // ⑦ 气经济
-      inactivityPenalty;     // ⑧ 活跃惩罚
+    let reward = damageReward;
     let done = false;
 
     if (this.player.state === 'dead') {
-      reward -= 20;
+      reward -= 10;
       done = true;
     } else if (enemiesAlive === 0) {
       if (this.scenario === 'waves') {
@@ -324,15 +277,15 @@ export class GameEnv {
           // 清波后要求向右推进触发下一波（环境构成，与 reward 无关）
           this.advanceTarget = this.player.centerX + 260;
         } else {
-          reward += 5 + this.player.hp * 0.02; // 通关 + 剩余血量加成
+          reward += 10; // 通关
           done = true;
         }
       } else {
-        reward += 5 + this.player.hp * 0.02;
+        reward += 10; // 通关
         done = true;
       }
     } else if (this.t >= maxTicks(this.scenario)) {
-      reward -= 2;
+      reward -= 10; // timeout = fail
       done = true;
     }
 
