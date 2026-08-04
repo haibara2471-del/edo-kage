@@ -3,6 +3,7 @@ import { Effects } from './effects';
 import { Stage } from './stage';
 import { Player } from './player';
 import { Waves } from './waves';
+import { Tower } from './tower';
 import { Title } from './title';
 import { Codex } from './codex';
 import { resolveCombat } from './combat';
@@ -34,6 +35,7 @@ const effects = new Effects();
 const stage = new Stage();
 const player = new Player();
 const waves = new Waves();
+const tower = new Tower();
 const title = new Title();
 const codex = new Codex();
 
@@ -213,6 +215,16 @@ window.addEventListener('keydown', (e) => {
       world.camX = clamp(player.centerX - VIEW_W / 2, 0, stage.width - VIEW_W);
     }
   }
+  // 4/5/6/7：塔层跳转（真龙/橘右京/不知火舞/宫本武藏）
+  if (e.code === 'Digit4' || e.code === 'Digit5' || e.code === 'Digit6' || e.code === 'Digit7') {
+    const fi = Number(e.code.slice(-1)) - 4;
+    world.enemies.length = 0;
+    waves.enabled = false;
+    waves.barrierX = null;
+    waves.barrierL = null;
+    tower.start(world, fi);
+    world.camX = clamp(player.centerX - VIEW_W / 2, 0, stage.width - VIEW_W);
+  }
   if (e.code === 'KeyN') world.enemies.length = 0; // 秒清当前波（测结界开门）
 });
 
@@ -256,27 +268,29 @@ function tick(): void {
 
   player.update(world);
 
-  // 结界：波次未清完时封锁右路；Boss 战同时封锁左路（玩家和怪物都夹住，防止击退逃逸）
-  if (waves.barrierX !== null) {
-    if (player.x + player.w > waves.barrierX) {
-      player.x = waves.barrierX - player.w;
+  // 结界 / 塔竞技场：封锁左右（玩家和怪物都夹住，防止击退逃逸）
+  const bL = tower.active ? tower.barrierL : waves.barrierL;
+  const bR = tower.active ? tower.barrierR : waves.barrierX;
+  if (bR !== null) {
+    if (player.x + player.w > bR) {
+      player.x = bR - player.w;
       if (player.vx > 0) player.vx = 0;
     }
     for (const e of world.enemies) {
-      if (e.x + e.w > waves.barrierX) {
-        e.x = waves.barrierX - e.w;
+      if (e.x + e.w > bR) {
+        e.x = bR - e.w;
         if (e.vx > 0) e.vx = 0;
       }
     }
   }
-  if (waves.barrierL !== null) {
-    if (player.x < waves.barrierL) {
-      player.x = waves.barrierL;
+  if (bL !== null) {
+    if (player.x < bL) {
+      player.x = bL;
       if (player.vx < 0) player.vx = 0;
     }
     for (const e of world.enemies) {
-      if (e.x < waves.barrierL) {
-        e.x = waves.barrierL;
+      if (e.x < bL) {
+        e.x = bL;
         if (e.vx < 0) e.vx = 0;
       }
     }
@@ -298,19 +312,37 @@ function tick(): void {
   world.clouds = world.clouds.filter((c) => !c.dead);
 
   resolveCombat(world);
-  waves.update(world);
+
+  if (!tower.active) {
+    waves.update(world);
+    // 大门开启后走向大门 → 进塔
+    if (waves.gateOpen && player.centerX > 2680 && !tower.active) {
+      waves.enabled = false;
+      waves.barrierX = null;
+      waves.barrierL = null;
+      tower.start(world, 0);
+    }
+  }
+  if (tower.active) tower.update(world);
+
   effects.update();
 
   // 每局结束时上报一次（通关 / 死亡 1.5 秒后；作弊局、回放、AI 代打不上报）
   if (!reported && !debugUsed && !replayInfo && !aiPlay) {
     const env: 'local' | 'prod' = location.hostname === 'localhost' ? 'local' : 'prod';
-    if (waves.done) {
+    if (tower.active && tower.done) {
+      reported = true;
+      void reportRun({
+        v: 1, name: playerName, seed, result: 'clear', wave: 3 + tower.total, duration: frameCount,
+        hpLeft: player.hp, log: input.log, env, ua: navigator.userAgent, at: new Date().toISOString(),
+      });
+    } else if (!tower.active && waves.done) {
       reported = true;
       void reportRun({
         v: 1, name: playerName, seed, result: 'clear', wave: waves.wave, duration: frameCount,
         hpLeft: player.hp, log: input.log, env, ua: navigator.userAgent, at: new Date().toISOString(),
       });
-    } else if (player.state === 'dead') {
+    } else if (!tower.active && player.state === 'dead') {
       if (deathDelay < 0) deathDelay = 90;
       else if (--deathDelay <= 0) {
         reported = true;
@@ -395,11 +427,14 @@ function render(): void {
 
   ctx.restore();
 
-  drawHUD(ctx, world, waves, VIEW_W);
+  drawHUD(ctx, world, waves, VIEW_W, tower.active ? tower.label : undefined, tower.active);
 
   // Boss 血条
   const boss = world.enemies.find((e) => e.codexId === 'boss') as { hp: number; maxHp: number; dead: boolean } | undefined;
-  if (boss && !boss.dead) drawBossBar(ctx, '龍', boss.hp, boss.maxHp, VIEW_W);
+  if (boss && !boss.dead) drawBossBar(ctx, tower.active ? tower.bossName : '龍', boss.hp, boss.maxHp, VIEW_W);
+
+  // 塔内视觉：暗角 + 层数横幅（独立场景的视觉标识）
+  if (tower.active) tower.draw(ctx, VIEW_W, VIEW_H);
 
   // 回放横幅
   if (replayInfo) {

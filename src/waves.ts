@@ -8,7 +8,7 @@ import { Shaman } from './shaman';
 import { Boss } from './boss';
 import type { World } from './world';
 
-type Phase = 'start' | 'fight' | 'advance' | 'bossfight' | 'hardfight' | 'done';
+type Phase = 'start' | 'fight' | 'advance' | 'gatefight' | 'gateopen' | 'done';
 
 /** 战区边界（造梦西游式区域封锁；地面已连通，不再依赖地形分段） */
 const ZONES = [
@@ -48,6 +48,8 @@ export class Waves {
   barrierL: number | null = null;
   announceTimer = 0;
   done = false;
+  /** 守门「龙」已击败，大门开启（主场景据此触发进塔） */
+  gateOpen = false;
 
   update(w: World): void {
     if (!this.enabled) return;
@@ -61,7 +63,8 @@ export class Waves {
       case 'fight':
         if (w.enemies.length === 0) {
           if (this.wave >= this.total) {
-            this.spawnBoss(w);
+            this.phase = 'gatefight';
+            this.spawnGateBoss(w);
           } else {
             this.phase = 'advance';
             this.barrierX = null;
@@ -75,19 +78,16 @@ export class Waves {
         break;
       }
 
-      case 'bossfight':
+      case 'gatefight': // 守门「龙」被击败 → 大门开启
         if (w.enemies.length === 0) {
-          this.spawnHardBoss(w);
+          this.phase = 'gateopen';
+          this.gateOpen = true;
+          this.barrierX = null;
+          this.announceTimer = 90;
         }
         break;
 
-      case 'hardfight':
-        if (w.enemies.length === 0) {
-          this.phase = 'done';
-          this.done = true;
-          this.barrierX = null;
-          this.barrierL = null;
-        }
+      case 'gateopen': // 玩家走向大门 → main.ts 检测触发进塔
         break;
 
       case 'done':
@@ -95,30 +95,19 @@ export class Waves {
     }
   }
 
-  /** Boss 战：「龙」携双钩使登场，结界封两侧 */
-  private spawnBoss(w: World): void {
-    this.phase = 'bossfight';
+  /** 大门守卫战：「龙」携双钩使守在大门前，结界封两侧。击败后大门开启（真龙已移入塔第一层） */
+  private spawnGateBoss(w: World): void {
+    this.phase = 'gatefight';
     this.announceTimer = 120;
     const zone = ZONES[2];
     this.barrierL = zone.x0 + 12;
     this.barrierX = zone.x1 - 12;
-    const cx = (zone.x0 + zone.x1) / 2;
-    w.player.hp = Math.min(w.player.maxHp, w.player.hp + 20); // 进入 Boss 战回复 20 血
+    const cx = zone.x0 + (zone.x1 - zone.x0) * 0.7; // 靠近大门
+    w.player.hp = Math.min(w.player.maxHp, w.player.hp + 20); // 守门战回复 20 血
     w.player.ki = Math.min(w.player.maxKi, w.player.ki + 20); // 同时回 20 气
     w.enemies.push(new Boss(cx + 100, w.stage.groundY - 40));
     w.enemies.push(new HookSoldier(cx - 120, w.stage.groundY - 34));
     w.enemies.push(new HookSoldier(cx + 220, w.stage.groundY - 34));
-  }
-
-  /** Hard 模式：通关普通 Boss 后，真龙现身——强化版（300 血 / 残像 35%） */
-  private spawnHardBoss(w: World): void {
-    this.phase = 'hardfight';
-    this.announceTimer = 120;
-    const zone = ZONES[2];
-    const cx = (zone.x0 + zone.x1) / 2;
-    w.player.hp = Math.min(w.player.maxHp, w.player.hp + 20); // Hard Boss 也回复 20 血
-    w.player.ki = Math.min(w.player.maxKi, w.player.ki + 20); // 同时回 20 气
-    w.enemies.push(new Boss(cx, w.stage.groundY - 40, { hp: 300, dodge: 0.35 }));
   }
 
   private startWave(w: World, zoneIdx: number): void {
@@ -170,6 +159,46 @@ export class Waves {
       if (x === null) continue;
       this.drawBarrier(ctx, x, groundY, t);
     }
+    // 大门（第三战区尽头，龙守门处）：未开是封印石门，开启后泛光
+    if (this.phase === 'gatefight' || this.phase === 'gateopen') {
+      this.drawGate(ctx, 2725, groundY, t);
+    }
+  }
+
+  /** 大门：两根石柱 + 横梁；开启时中央封印札消散、泛蓝光 */
+  private drawGate(ctx: CanvasRenderingContext2D, x: number, groundY: number, t: number): void {
+    const open = this.phase === 'gateopen';
+    ctx.fillStyle = '#2a3560';
+    ctx.fillRect(x - 4, groundY - 200, 8, 200);   // 左柱
+    ctx.fillRect(x + 46, groundY - 200, 8, 200);  // 右柱
+    ctx.fillRect(x - 10, groundY - 204, 68, 10);  // 横梁
+    ctx.fillStyle = '#4a5a90';
+    ctx.fillRect(x - 2, groundY - 190, 4, 190);
+    ctx.fillRect(x + 48, groundY - 190, 4, 190);
+    // 门楣匾额
+    ctx.fillStyle = '#3a2c4c';
+    ctx.fillRect(x + 2, groundY - 196, 50, 8);
+    ctx.fillStyle = '#e8d8a0';
+    ctx.font = 'bold 9px "Yu Mincho","MS Mincho",serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('試練の門', x + 27, groundY - 189);
+
+    if (open) {
+      // 开启：门内泛光 + 符咒上浮
+      ctx.globalAlpha = 0.35 + Math.sin(t * 0.15) * 0.12;
+      const g = ctx.createLinearGradient(x - 4, 0, x + 54, 0);
+      g.addColorStop(0, 'rgba(160,200,255,0)');
+      g.addColorStop(0.5, 'rgba(160,200,255,0.9)');
+      g.addColorStop(1, 'rgba(160,200,255,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(x - 4, groundY - 200, 58, 200);
+      ctx.globalAlpha = 1;
+      for (let i = 0; i < 4; i++) {
+        const yy = groundY - 20 - ((t * 1.5 + i * 40) % 170);
+        ctx.fillStyle = '#f5ead8';
+        ctx.fillRect(x + 10 + i * 10, yy, 8, 4);
+      }
+    }
   }
 
   private drawBarrier(ctx: CanvasRenderingContext2D, x: number, groundY: number, t: number): void {
@@ -196,8 +225,8 @@ export class Waves {
       case 'start': return '敵襲……';
       case 'fight': return `第 ${this.wave} / ${this.total} 波`;
       case 'advance': return '前進 →';
-      case 'bossfight': return '最終決戦「龍」';
-      case 'hardfight': return '修羅場・真龍';
+      case 'gatefight': return '門番「龍」';
+      case 'gateopen': return '大門・開け！';
       case 'done': return '任務完了 · 按 R 重开';
     }
   }

@@ -800,3 +800,282 @@ export function drawAshigaru(
 
   ctx.restore();
 }
+
+/* ============ 塔 Boss：橘右京 / 不知火舞 / 宫本武藏 ============ */
+
+const KYOSHIRO: Pal = {
+  cloth: '#3a4a8a', clothD: '#2c3a6e', trim: '#e8e0c8',
+  skin: '#ecc090', hair: '#1e2440', belt: '#c8d0e0',
+  blade: '#f0f4ff', metal: '#b8c2d8', boots: '#222840',
+};
+const WHITE_KYOSHIRO: Pal = whiten(KYOSHIRO);
+
+export interface KyoshiroPose { state: string; t: number; timer: number; flash: number; }
+
+/** 橘右京：青紫武士，拔刀流。太刀由前臂伸出，蓄力时全白闪 */
+export function drawKyoshiro(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number,
+  facing: number, pose: KyoshiroPose,
+): void {
+  const windup = pose.state === 'slashWindup' || pose.state === 'chargeUp' || pose.state === 'thrustWindup';
+  const white = pose.flash > 0 || (windup && Math.floor(pose.timer / 3) % 2 === 0);
+  const P = white ? WHITE_KYOSHIRO : KYOSHIRO;
+  const t = pose.t;
+  ctx.save();
+  ctx.translate(x + w / 2, y + h);
+  ctx.scale(facing, 1);
+
+  if (pose.state === 'dead') {
+    r(ctx, -16, -9, 28, 9, P.clothD);
+    r(ctx, 12, -10, 9, 9, P.skin);
+    ctx.restore();
+    return;
+  }
+
+  let bob = 0, lean = 0, legF = 0.05, legB = -0.05, armF = 0.35, armB = -0.3, sword = 1.9;
+  switch (pose.state) {
+    case 'walk': {
+      const c = t * 0.24;
+      legF = Math.sin(c) * 0.55; legB = -legF; bob = -Math.abs(Math.sin(c));
+      sword = 1.9; break;
+    }
+    case 'slashWindup': lean = -0.12; legF = 0.35; legB = -0.45; armF = -2.2; sword = 2.6; break; // 收刀下蹲
+    case 'slashDash': lean = 0.4; armF = -0.2; sword = 0.1; legF = -0.5; legB = 0.7; break;       // 拔刀横斩
+    case 'counter': lean = 0.3; armF = 1.6; sword = 0.3; legF = 0.6; legB = -0.7; break;         // 反手
+    case 'chargeUp': lean = -0.05; legF = 0.2; legB = -0.25; armF = -1.9; sword = 2.4; break;    // 拔刀蓄力
+    case 'heavySlash': lean = 0.42; armF = -0.15; sword = -0.05; legF = -0.4; legB = 0.6; break;
+    case 'thrustWindup': lean = -0.1; legF = 0.3; legB = -0.4; armF = -2.1; sword = 2.55; break;
+    case 'thrust': lean = 0.55; armF = 0.06; sword = 0.06; legF = -0.7; legB = 0.9; break;       // 残影突刺
+    case 'hit': lean = -0.28; armF = -0.9; sword = 1.2; legF = 0.4; legB = -0.5; break;
+    default: bob = Math.sin(t * 0.06) * 0.7; armF = 0.4 + Math.sin(t * 0.06) * 0.05; sword = 1.9;
+  }
+
+  ctx.translate(0, bob);
+  ctx.rotate(lean);
+  leg(ctx, -2, -16, legB, P.clothD, P.boots);
+  leg(ctx, 2, -16, legF, P.cloth, P.boots);
+  arm(ctx, -3.5, -28, armB, P.clothD, P.skin);
+
+  // 躯干（和服）+ 腰带
+  r(ctx, -5.5, -31, 11, 16, P.cloth);
+  r(ctx, -5.5, -22, 11, 2, P.belt);
+  // 头 + 头带
+  r(ctx, -4.5, -39, 9.5, 9, P.skin);
+  r(ctx, -4.5, -39, 9.5, 3.5, P.hair);
+  r(ctx, -4.5, -36, 9.5, 1.8, P.trim);
+  r(ctx, 3, -34.5, 1.6, 1.6, white ? '#ffffff' : '#101018');
+
+  // 前臂 + 太刀
+  ctx.save();
+  ctx.translate(3.5, -28);
+  ctx.rotate(armF);
+  r(ctx, -1.75, 0, 3.5, 11, P.cloth);
+  r(ctx, -1.5, 10, 3, 3, P.skin);
+  ctx.translate(0, 11.5);
+  ctx.rotate(sword);
+  r(ctx, -1.2, -2.4, 2.4, 4.8, P.belt);   // 镡
+  r(ctx, 0, -1.3, 24, 2.6, P.blade);
+  r(ctx, 0, -1.3, 24, 1, P.metal);
+  ctx.restore();
+
+  ctx.restore();
+}
+
+const MAI: Pal = {
+  cloth: '#c03050', clothD: '#8e2438', trim: '#f0e0d0',
+  skin: '#f0c8a0', hair: '#20242c', belt: '#e8d8a0',
+  fan: '#e8c860', fanD: '#c8a048', boots: '#8e2438',
+};
+const WHITE_MAI: Pal = whiten(MAI);
+
+export interface MaiPose { state: string; t: number; timer: number; flash: number; }
+
+/** 不知火舞：红白扇舞，手持两扇，长马尾 */
+export function drawMai(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number,
+  facing: number, pose: MaiPose,
+): void {
+  const windup = pose.state === 'fanWindup' || pose.state === 'fireWindup' || pose.state === 'chargeWindup';
+  const white = pose.flash > 0 || (windup && Math.floor(pose.timer / 3) % 2 === 0);
+  const P = white ? WHITE_MAI : MAI;
+  const t = pose.t;
+  ctx.save();
+  ctx.translate(x + w / 2, y + h);
+  ctx.scale(facing, 1);
+
+  if (pose.state === 'dead') {
+    r(ctx, -15, -9, 26, 9, P.cloth);
+    r(ctx, 12, -10, 9, 9, P.skin);
+    ctx.restore();
+    return;
+  }
+
+  let bob = 0, lean = 0, legF = 0.05, legB = -0.05, armF = 0.3, armB = -0.35;
+  switch (pose.state) {
+    case 'walk': {
+      const c = t * 0.26;
+      legF = Math.sin(c) * 0.6; legB = -legF; bob = -Math.abs(Math.sin(c));
+      armF = 0.55 + Math.sin(c) * 0.15; armB = -0.5; break;
+    }
+    case 'fanWindup': lean = -0.08; armF = -1.3; armB = -1.6; legF = 0.3; legB = -0.4; break;
+    case 'fireWindup': lean = -0.1; armF = 2.1; armB = -0.3; legF = 0.4; legB = -0.5; break;
+    case 'charge': lean = 1.1; armF = -1.9; armB = -1.8; legF = 0.5; legB = -0.5; break; // 忍蜂突进
+    case 'chargeWindup': lean = 0.15; armF = -1.4; armB = -1.7; legF = 0.7; legB = -0.7; break;
+    case 'airCombo': lean = 0.25; armF = -0.6; armB = 1.3; legF = -0.6; legB = 0.8; break; // 腾空
+    case 'hit': lean = -0.28; armF = -1.0; armB = 0.9; legF = 0.45; legB = -0.55; break;
+    default: bob = Math.sin(t * 0.06) * 0.8; armF = 0.35 + Math.sin(t * 0.06) * 0.06; armB = -0.4;
+  }
+
+  ctx.translate(0, bob);
+  ctx.rotate(lean);
+  leg(ctx, -2, -15, legB, P.clothD, P.boots);
+  leg(ctx, 2, -15, legF, P.cloth, P.boots);
+
+  // 后臂持扇
+  ctx.save();
+  ctx.translate(-3.5, -27);
+  ctx.rotate(armB);
+  r(ctx, -1.75, 0, 3.5, 10, P.clothD);
+  ctx.fillStyle = P.fan;
+  ctx.beginPath();
+  ctx.moveTo(0, 8); ctx.lineTo(10, -2); ctx.lineTo(0, -4); ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  // 躯干（红）+ 白襟
+  r(ctx, -5.5, -30, 11, 15, P.cloth);
+  r(ctx, -5.5, -30, 2.5, 15, P.trim);
+  r(ctx, -5.5, -22, 11, 2, P.belt);
+
+  // 头 + 长马尾
+  r(ctx, -4.5, -38, 9.5, 9, P.skin);
+  r(ctx, -4.5, -38, 9.5, 3.5, P.hair);
+  ctx.fillStyle = P.hair;
+  ctx.beginPath();
+  ctx.moveTo(2, -37);
+  ctx.quadraticCurveTo(12, -34, 9, -22);
+  ctx.quadraticCurveTo(5, -27, 2, -30);
+  ctx.closePath();
+  ctx.fill();
+  r(ctx, 3, -33.5, 1.6, 1.6, white ? '#ffffff' : '#101018');
+
+  // 前臂持扇（攻击态张开）
+  ctx.save();
+  ctx.translate(3.5, -27);
+  ctx.rotate(armF);
+  r(ctx, -1.75, 0, 3.5, 10, P.cloth);
+  ctx.fillStyle = P.fan;
+  ctx.beginPath();
+  ctx.moveTo(0, 8); ctx.lineTo(12, -1); ctx.lineTo(0, -3); ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  ctx.restore();
+}
+
+const MUSASHI: Pal = {
+  cloth: '#2e3a2c', clothD: '#222c22', trim: '#8a2c30',
+  skin: '#e8bc90', hair: '#14181c', belt: '#5a4630',
+  blade: '#e8eef8', metal: '#9aa6b8', boots: '#1c221c',
+};
+const WHITE_MUSASHI: Pal = whiten(MUSASHI);
+
+export interface MusashiPose { state: string; t: number; timer: number; flash: number; comboStage?: number; invuln?: number; }
+
+/** 宫本武藏：黑绿武士，双刀（前刀 + 后刀） */
+export function drawMusashi(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number,
+  facing: number, pose: MusashiPose,
+): void {
+  const windup = pose.state === 'ultWindup' || pose.state === 'slashWindup' || pose.state === 'thrustWindup';
+  const white = pose.flash > 0 || (windup && Math.floor(pose.timer / 3) % 2 === 0);
+  const P = white ? WHITE_MUSASHI : MUSASHI;
+  const t = pose.t;
+  ctx.save();
+  ctx.translate(x + w / 2, y + h);
+  ctx.scale(facing, 1);
+
+  if (pose.state === 'dead') {
+    r(ctx, -17, -9, 30, 9, P.clothD);
+    r(ctx, 13, -10, 9, 9, P.skin);
+    ctx.restore();
+    return;
+  }
+
+  let bob = 0, lean = 0, legF = 0.05, legB = -0.05, armF = 0.3, armB = -0.35, frontS = 0.2, backS = -2.4;
+  switch (pose.state) {
+    case 'walk': {
+      const c = t * 0.24;
+      legF = Math.sin(c) * 0.55; legB = -legF; bob = -Math.abs(Math.sin(c));
+      frontS = 0.35; backS = -2.3; break;
+    }
+    case 'thrustWindup': lean = -0.1; legF = 0.3; legB = -0.4; armF = -2.1; frontS = 2.5; backS = -2.5; break;
+    case 'thrust': lean = 0.6; armF = 0.05; frontS = 0.05; legF = -0.7; legB = 0.9; break; // 神速突刺
+    case 'combo':
+      if (pose.comboStage === 3) { lean = -0.3; armF = -1.7; frontS = 2.4; legF = -0.8; legB = 1.1; } // 上挑
+      else { lean = 0.3; armF = -0.1; frontS = 0.1; legF = 0.4; legB = -0.5; }                        // 横斩
+      break;
+    case 'ultWindup': lean = 0.08; legF = 0.25; legB = -0.3; armF = -1.8; frontS = 2.5; backS = 2.5; break;
+    case 'ult': lean = 0.5; armF = -1.2; frontS = 2.2; legF = -0.5; legB = 0.7; break; // 乱舞
+    case 'slash': lean = 0.42; armF = -0.1; frontS = 0.05; legF = -0.5; legB = 0.65; break;
+    case 'hit': lean = -0.28; armF = -0.9; frontS = 1.2; legF = 0.4; legB = -0.5; break;
+    default: bob = Math.sin(t * 0.05) * 0.8; armF = 0.35 + Math.sin(t * 0.05) * 0.05; frontS = 0.2;
+  }
+
+  ctx.translate(0, bob);
+  ctx.rotate(lean);
+  leg(ctx, -2, -17, legB, P.clothD, P.boots);
+  leg(ctx, 2, -17, legF, P.cloth, P.boots);
+
+  // 后手刀
+  ctx.save();
+  ctx.translate(-3.5, -29);
+  ctx.rotate(armB);
+  r(ctx, -1.75, 0, 3.5, 11, P.clothD);
+  r(ctx, -1.5, 10, 3, 3, P.skin);
+  ctx.translate(0, 11.5);
+  ctx.rotate(backS);
+  r(ctx, -1.2, -2.4, 2.4, 4.8, P.belt);
+  r(ctx, 0, -1.3, 22, 2.4, P.blade);
+  ctx.restore();
+
+  // 躯干 + 胸甲
+  r(ctx, -6, -32, 12, 17, P.cloth);
+  r(ctx, -6, -32, 12, 4, P.clothD);
+  r(ctx, -6, -22, 12, 2.5, P.belt);
+
+  // 头 + 月代头带
+  r(ctx, -4.5, -40, 9.5, 9, P.skin);
+  r(ctx, -4.5, -40, 9.5, 3.5, P.hair);
+  r(ctx, -4.5, -37, 9.5, 1.8, P.trim);
+  r(ctx, 3, -35.5, 1.6, 1.6, white ? '#ffffff' : '#101018');
+
+  // 前手刀
+  ctx.save();
+  ctx.translate(3.5, -29);
+  ctx.rotate(armF);
+  r(ctx, -1.75, 0, 3.5, 11, P.cloth);
+  r(ctx, -1.5, 10, 3, 3, P.skin);
+  ctx.translate(0, 11.5);
+  ctx.rotate(frontS);
+  r(ctx, -1.2, -2.4, 2.4, 4.8, P.belt);
+  r(ctx, 0, -1.3, 24, 2.6, P.blade);
+  r(ctx, 0, -1.3, 24, 1, P.metal);
+  ctx.restore();
+
+  // 神速无敌帧：残影光环
+  if (pose.invuln && pose.invuln > 0) {
+    ctx.globalAlpha = 0.4;
+    ctx.strokeStyle = '#9fd8ff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, -20, 26, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  ctx.restore();
+}

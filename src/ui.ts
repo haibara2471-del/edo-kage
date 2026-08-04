@@ -45,7 +45,14 @@ export function drawBossBar(
 }
 
 /** HUD：血条 / 气条 / 波次 / 操作提示 */
-export function drawHUD(ctx: CanvasRenderingContext2D, w: World, waves: Waves, viewW: number): void {
+export function drawHUD(
+  ctx: CanvasRenderingContext2D,
+  w: World,
+  waves: Waves,
+  viewW: number,
+  labelOverride?: string,
+  inTower = false,
+): void {
   const p = w.player;
 
   bar(ctx, 16, 14, 180, 14, p.hp / p.maxHp, '#e04040', `HP ${p.hp}`);
@@ -70,7 +77,7 @@ export function drawHUD(ctx: CanvasRenderingContext2D, w: World, waves: Waves, v
   ctx.font = 'bold 16px monospace';
   ctx.textAlign = 'center';
   ctx.fillStyle = '#e8e4c8';
-  ctx.fillText(waves.label, viewW / 2, 30);
+  ctx.fillText(labelOverride ?? waves.label, viewW / 2, 30);
 
   if (waves.announceTimer > 0 && !waves.done) {
     const kanji = ['壱', '弐', '参'][waves.wave - 1] ?? String(waves.wave);
@@ -81,7 +88,7 @@ export function drawHUD(ctx: CanvasRenderingContext2D, w: World, waves: Waves, v
     ctx.globalAlpha = 1;
   }
 
-  if (p.state === 'dead') {
+  if (p.state === 'dead' && !inTower) {
     ctx.font = 'bold 32px "Yu Mincho","MS Mincho",serif';
     ctx.fillStyle = '#ff5566';
     ctx.fillText('任務失敗', viewW / 2, 200);
