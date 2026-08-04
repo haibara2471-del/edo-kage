@@ -317,7 +317,6 @@ export class GameEnv {
     const killsNow = Math.max(0, this.prevEnemiesAlive - enemiesAlive);
     this.totalKills += killsNow;
 
-    const frames = this.scenario === 'boss' ? 2 : 4;
     const inactivityPenalty = (enemiesAlive > 0 && windowDmg < 0.1) ? -0.03 : 0;
 
     let reward =
