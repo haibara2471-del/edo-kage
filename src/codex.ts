@@ -6,7 +6,7 @@ import type { Input } from './input';
 
 export type CodexId =
   | 'ashigaru' | 'archer' | 'hook' | 'bruiser' | 'shaman' | 'crow' | 'bat' | 'boss'
-  | 'dragonPlus' | 'kyoshiro' | 'mai' | 'musashi';
+  | 'kyoshiro' | 'mai' | 'musashi';
 
 interface Entry {
   id: CodexId;
@@ -88,10 +88,6 @@ const ENTRIES: Entry[] = [
   {
     id: 'boss', jp: '龍', cn: '异邦武僧', hp: 200, atk: 12,
     flavor: ['守门之战：三连踢/飞踢/升龙/残像。', '他的招都有前摇——', '看清楚了再动手。'],
-  },
-  {
-    id: 'dragonPlus', jp: '真龍', cn: '强化龙', hp: 300, atk: 14,
-    flavor: ['塔第一层：300 血、残像 35%。', '比守门龙更快更狠，', '是千刃试炼的开胃菜。'],
   },
   {
     id: 'kyoshiro', jp: '橘右京', cn: '拔刀剑士', hp: 220, atk: 10,
@@ -294,7 +290,6 @@ export class Codex {
             drawShaman(ctx, -10, -16, 20, 32, 1, { state: 'idle', t, timer: 0, flash: 0 });
             break;
           case 'boss':
-          case 'dragonPlus':
             drawBoss(ctx, -11, -20, 22, 40, 1, { state: 'idle', t, timer: 0, flash: 0 });
             break;
           case 'kyoshiro':

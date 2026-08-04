@@ -3,7 +3,6 @@ import { clamp } from './types';
 import { integrate } from './physics';
 import { rand } from './rng';
 import { drawBoss } from './characters';
-import type { CodexId } from './codex';
 import type { World } from './world';
 
 type State =
@@ -31,7 +30,7 @@ export class Boss {
 
   hp: number;
   readonly maxHp: number;
-  readonly codexId: CodexId; // 'boss'=守门龙 / 'dragonPlus'=真龙（塔第一层）
+  readonly codexId = 'boss' as const;
 
   state: State = 'idle';
   timer = 0;
@@ -51,14 +50,13 @@ export class Boss {
   constructor(
     public x: number,
     public y: number,
-    opts: { hp?: number; dodge?: number; noPhase2?: boolean; codexId?: CodexId } = {},
+    opts: { hp?: number; dodge?: number; noPhase2?: boolean } = {},
   ) {
     // 难度参数：RL 课程用（弱化版 → 完全版），游戏本体用默认值
     this.maxHp = opts.hp ?? 200;
     this.hp = this.maxHp;
     this.dodgeBase = opts.dodge ?? 0.25;
     this.noPhase2 = opts.noPhase2 ?? false;
-    this.codexId = opts.codexId ?? 'boss';
   }
 
   get rect(): Rect {
