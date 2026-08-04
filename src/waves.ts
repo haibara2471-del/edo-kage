@@ -103,6 +103,8 @@ export class Waves {
     this.barrierL = zone.x0 + 12;
     this.barrierX = zone.x1 - 12;
     const cx = (zone.x0 + zone.x1) / 2;
+    w.player.hp = Math.min(w.player.maxHp, w.player.hp + 20); // 进入 Boss 战回复 20 血
+    w.player.ki = Math.min(w.player.maxKi, w.player.ki + 20); // 同时回 20 气
     w.enemies.push(new Boss(cx + 100, w.stage.groundY - 40));
     w.enemies.push(new HookSoldier(cx - 120, w.stage.groundY - 34));
     w.enemies.push(new HookSoldier(cx + 220, w.stage.groundY - 34));
@@ -114,6 +116,8 @@ export class Waves {
     this.announceTimer = 120;
     const zone = ZONES[2];
     const cx = (zone.x0 + zone.x1) / 2;
+    w.player.hp = Math.min(w.player.maxHp, w.player.hp + 20); // Hard Boss 也回复 20 血
+    w.player.ki = Math.min(w.player.maxKi, w.player.ki + 20); // 同时回 20 气
     w.enemies.push(new Boss(cx, w.stage.groundY - 40, { hp: 300, dodge: 0.35 }));
   }
 

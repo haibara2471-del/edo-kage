@@ -1,4 +1,4 @@
-export type Action = 'left' | 'right' | 'jump' | 'attack' | 'shuriken' | 'dash' | 'codex' | 'skillU' | 'skillH' | 'skillO';
+export type Action = 'left' | 'right' | 'jump' | 'attack' | 'shuriken' | 'dash' | 'codex' | 'skillU' | 'skillH' | 'skillO' | 'vamp';
 
 const KEYMAP: Record<string, Action> = {
   KeyA: 'left', ArrowLeft: 'left',
@@ -11,6 +11,7 @@ const KEYMAP: Record<string, Action> = {
   KeyU: 'skillU',
   KeyH: 'skillH',
   KeyO: 'skillO',
+  KeyI: 'vamp',
 };
 
 const BUFFER_TICKS = 9; // 输入缓冲窗口：9 帧（=150ms@60Hz），用逻辑帧计时保证回放可复现

@@ -41,6 +41,10 @@ const LAUNCHER_VEL = -9;
 const FLURRY_COST = 20;     // 朧乱舞
 const FLURRY_TIME = 36;     // 9 段连斩（每 4 帧一段）
 const ORB_COST = 25;        // 水月の術
+const VAMP_COST = 20;       // 血飲：吸血 buff
+const VAMP_TIME = 180;      // 3 秒
+const VAMP_CD = 480;        // 8 秒
+const VAMP_RATIO = 0.3;     // 造成伤害的 30% 回血
 
 type State = 'idle' | 'run' | 'air' | 'attack' | 'launcher' | 'flurry' | 'dash' | 'hit' | 'dead';
 
@@ -73,6 +77,8 @@ export class Player {
   coyote = 0;        // 土狼时间：离开平台边缘后短暂可跳
   airJumps = 0;
   throwCd = 0;
+  vampTimer = 0;     // 吸血 buff 剩余帧数
+  vampCd = 0;        // 吸血技能 CD
   t = 0;             // 动画时钟（逻辑帧递增）
   god = false;       // 开发者无敌（?debug=1 按 G）
   poisonTimer = 0;   // 蛊毒：持续掉血 + 减速
@@ -122,6 +128,13 @@ export class Player {
     this.ki = Math.min(this.maxKi, this.ki + KI_PER_HIT);
   }
 
+  /** 吸血：开启血饮 buff 时，按伤害比例回血 */
+  applyVamp(dmg: number): void {
+    if (this.vampTimer > 0) {
+      this.hp = Math.min(this.maxHp, this.hp + dmg * VAMP_RATIO);
+    }
+  }
+
   /** 蛊毒掉血（不触发硬直） */
   dot(dmg: number): void {
     if (this.god || this.state === 'dead') return;
@@ -159,6 +172,8 @@ export class Player {
     if (this.invTimer > 0) this.invTimer--;
     if (this.dashCd > 0) this.dashCd--;
     if (this.throwCd > 0) this.throwCd--;
+    if (this.vampTimer > 0) this.vampTimer--;
+    if (this.vampCd > 0) this.vampCd--;
     if (this.coyote > 0) this.coyote--;
     if (this.poisonTimer > 0) {
       this.poisonTimer--;
@@ -275,6 +290,14 @@ export class Player {
         this.ki -= ORB_COST;
         w.orbs.push(new WaterOrb(this.centerX + this.facing * 20, this.y + 8, this.facing * 1.6));
       }
+    }
+
+    // 血飲（I）：消耗气开启吸血 buff，一段时间内造成伤害按比例回血
+    if (!attacking && this.vampCd <= 0 && this.ki >= VAMP_COST && input.consume('vamp')) {
+      this.ki -= VAMP_COST;
+      this.vampTimer = VAMP_TIME;
+      this.vampCd = VAMP_CD;
+      effects.ring(this.centerX, this.y + this.h - 6);
     }
 
     // 短刀连击

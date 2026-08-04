@@ -17,6 +17,7 @@ export function resolveCombat(w: World): void {
         e.lastHitId = player.attackId;
         const died = e.takeHit(spec.dmg, player.facing, spec.kbx, spec.kby, spec.hitstun);
         if ('onHitConfirm' in player) (player as { onHitConfirm: () => void }).onHitConfirm(); // 命中回气
+        player.applyVamp(spec.dmg); // 吸血 buff
         codex.mark(e.codexId);
         const src =
           player.state === 'launcher' ? 'skillU' :
@@ -39,6 +40,7 @@ export function resolveCombat(w: World): void {
         const died = e.takeHit(p.dmg, Math.sign(p.vx), 1.5, 0, 8);
         codex.mark(e.codexId);
         w.lastHits.push({ src: 'shuriken', dmg: p.dmg });
+        player.applyVamp(p.dmg); // 吸血 buff
         effects.shurikenHit(p.x, p.y, p.dmg);
         if (died) effects.death(e.centerX, e.centerY);
         break;

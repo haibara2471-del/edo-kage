@@ -69,10 +69,11 @@ export const ACTIONS: string[][] = [
   ['skillU'],               // 7
   ['skillH'],               // 8
   ['skillO'],               // 9
-  ['left', 'attack'],       // 10
-  ['right', 'attack'],      // 11
-  ['left', 'jump'],         // 12
-  ['right', 'jump'],        // 13
+  ['vamp'],                 // 10 吸血 buff
+  ['left', 'attack'],       // 11
+  ['right', 'attack'],      // 12
+  ['left', 'jump'],         // 13
+  ['right', 'jump'],        // 14
 ];
 
 const OBS_SIZE = 42;
