@@ -282,8 +282,7 @@ export class GameEnv {
     let reward =
       dealtReward +          // ① 输出伤害（分来源）
       killsNow * 5 -         // ③ 击杀
-      taken * 0.15 -         // ② 承受伤害
-      wasHit * 0.3 -         // ④ 被控制次数
+      taken * 0.05 -         // ② 承受伤害（轻罚，不再压制近战换血）
       - 0.01 * frames +       // ⑤ 通关速度（大幅提惩罚，逼 AI 必须找正回报）
       comboBonus +           // ⑥ combo 多样性
       kiReward +             // ⑦ 气经济
