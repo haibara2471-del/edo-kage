@@ -47,11 +47,13 @@ def main():
         training=False,
     )
 
+    # 训练内 eval 会间歇性卡死（单环境 HTTP 到 env-server，几次后就挂，两次 1M 训练都卡在 eval）。
+    # 真评估统一用 ai-analyze.ts（本地直跑游戏，不走 server）。eval_freq=0 = 禁用训练内评估。
     eval_cb = EvalCallback(
         eval_env,
         best_model_save_path=".",
         log_path=".",
-        eval_freq=max(40_000 // N_ENVS, 1),  # n_calls 每 16 步一次 → 2500 才等价于每 4 万步评估
+        eval_freq=0,
         n_eval_episodes=10,
         deterministic=True,
         verbose=1,
