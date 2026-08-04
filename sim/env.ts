@@ -191,9 +191,11 @@ export class GameEnv {
       const gy = stage.groundY;
       const px = this.player.x;
       const r = rand();
-      if (r < 0.25) {
-        this.spawnWave(rand() < 0.5 ? 2 : 3); // 真实 wave2 / wave3 编成
-      } else if (r < 0.45) {
+      if (r < 0.15) {
+        this.spawnWave(1); // 真实 wave1：3 足轻，可赢战斗，bootstrap 用
+      } else if (r < 0.35) {
+        this.spawnWave(rand() < 0.5 ? 2 : 3); // 真实 wave2 / wave3 编成（6 敌）
+      } else if (r < 0.5) {
         const side = rand() < 0.5 ? -1 : 1;
         world.enemies.push(new Archer(px + side * 300, gy - 34));
         world.enemies.push(new HookSoldier(px + side * 430, gy - 34));

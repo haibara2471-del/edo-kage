@@ -81,7 +81,7 @@ export class Tower {
 
     this.bossName = FLOOR_NAMES[this.floor];
     if (this.floor === 0) {
-      w.enemies.push(new Boss(cx, gy - 40, { hp: 300, dodge: 0.35 })); // 真龙（强化龙）
+      w.enemies.push(new Boss(cx, gy - 40, { hp: 300, dodge: 0.35, codexId: 'dragonPlus' })); // 真龙（塔第一层）
     } else if (this.floor === 1) {
       w.enemies.push(new KyoshiroBoss(cx, gy - 34));
     } else if (this.floor === 2) {

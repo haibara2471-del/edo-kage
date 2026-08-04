@@ -437,9 +437,9 @@ function render(): void {
 
   drawHUD(ctx, world, waves, VIEW_W, tower.active ? tower.label : undefined, tower.active);
 
-  // Boss 血条（龙 + 塔三 Boss 共 4 类）
+  // Boss 血条（守门龙 + 真龙 + 塔三 Boss 共 5 类）
   const boss = world.enemies.find((e) =>
-    e.codexId === 'boss' || e.codexId === 'kyoshiro' || e.codexId === 'mai' || e.codexId === 'musashi',
+    e.codexId === 'boss' || e.codexId === 'dragonPlus' || e.codexId === 'kyoshiro' || e.codexId === 'mai' || e.codexId === 'musashi',
   ) as { hp: number; maxHp: number; dead: boolean } | undefined;
   if (boss && !boss.dead) drawBossBar(ctx, tower.active ? tower.bossName : '龍', boss.hp, boss.maxHp, VIEW_W);
 
