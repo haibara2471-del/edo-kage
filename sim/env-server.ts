@@ -9,6 +9,10 @@ import { GameEnv, type Scenario } from './env';
 
 const PORT = Number(process.env.EDO_RL_PORT ?? '8787');
 const envs = new Map<string, GameEnv>();
+const MIRROR_MODEL = process.env.EDO_RL_MIRROR_MODEL ?? 'sim/rl/ppo_wave1.onnx';
+
+// 启动时预加载镜像对手模型（self-play 场景需要）
+void GameEnv.setMirrorModel(MIRROR_MODEL);
 
 function readBody(req: import('node:http').IncomingMessage): Promise<string> {
   return new Promise((resolve) => {
@@ -23,7 +27,7 @@ const server = createServer(async (req, res) => {
   try {
     if (req.url === '/meta' && req.method === 'GET') {
       const e = new GameEnv('ashigaru');
-      res.end(JSON.stringify({ obsSize: e.obsSize, actionCount: e.actionCount, scenarios: ['ashigaru', 'wave1', 'waves', 'boss', 'bossEasy', 'flyers', 'bossSquad', 'shurikenOnly', 'random'] }));
+      res.end(JSON.stringify({ obsSize: e.obsSize, actionCount: e.actionCount, scenarios: ['ashigaru', 'wave1', 'waves', 'boss', 'bossEasy', 'flyers', 'bossSquad', 'shurikenOnly', 'random', 'mirror'] }));
       return;
     }
 
@@ -50,7 +54,7 @@ const server = createServer(async (req, res) => {
         res.end(JSON.stringify({ error: 'call /reset first' }));
         return;
       }
-      const r = env.step(Number(body.action ?? 0));
+      const r = await env.step(Number(body.action ?? 0));
       res.end(JSON.stringify(r));
       return;
     }
@@ -78,7 +82,7 @@ const server = createServer(async (req, res) => {
       const out: Record<string, unknown> = {};
       for (const [s, a] of Object.entries(actions)) {
         const env = envs.get(s);
-        if (env) out[s] = env.step(Number(a));
+        if (env) out[s] = await env.step(Number(a));
       }
       res.end(JSON.stringify(out));
       return;

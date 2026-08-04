@@ -1,6 +1,7 @@
 import { rectsOverlap } from './types';
 import type { WaterOrb } from './projectile';
 import type { World } from './world';
+import { PlayerHittable } from './player-hittable';
 
 /** 每帧判定：玩家刀光/技能 vs 敌人、手里剑 vs 敌人、敌人攻击/箭矢 vs 玩家 */
 export function resolveCombat(w: World): void {
@@ -15,7 +16,7 @@ export function resolveCombat(w: World): void {
       if (rectsOverlap(hb, e.rect)) {
         e.lastHitId = player.attackId;
         const died = e.takeHit(spec.dmg, player.facing, spec.kbx, spec.kby, spec.hitstun);
-        player.onHitConfirm(); // 命中回气
+        if ('onHitConfirm' in player) (player as { onHitConfirm: () => void }).onHitConfirm(); // 命中回气
         codex.mark(e.codexId);
         const src =
           player.state === 'launcher' ? 'skillU' :
@@ -45,12 +46,17 @@ export function resolveCombat(w: World): void {
     }
   }
 
-  // 敌人攻击命中玩家（长枪突刺 / 俯冲）
+  // 敌人攻击命中玩家：普通敌人用 contactDamage；mirror 玩家用其攻击规格
   for (const e of enemies) {
     const eb = e.getAttackHitbox();
     if (!eb) continue;
     if (rectsOverlap(eb, player.rect)) {
-      player.takeHit(e.contactDamage, e.centerX < player.centerX ? 1 : -1, w);
+      if (e instanceof PlayerHittable) {
+        const as = e.player.attackSpec();
+        if (as) player.takeHit(as.dmg, e.player.facing, w);
+      } else {
+        player.takeHit(e.contactDamage, e.centerX < player.centerX ? 1 : -1, w);
+      }
     }
   }
 

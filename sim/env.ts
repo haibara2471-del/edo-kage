@@ -15,9 +15,11 @@ import { Effects } from '../src/effects';
 import { Codex } from '../src/codex';
 import { resolveCombat } from '../src/combat';
 import { reseed, rand } from '../src/rng';
-import type { World } from '../src/world';
+import { PlayerHittable } from '../src/player-hittable';
+import type { World, Hittable } from '../src/world';
+import * as ort from 'onnxruntime-node';
 
-export type Scenario = 'ashigaru' | 'wave1' | 'waves' | 'boss' | 'bossEasy' | 'flyers' | 'bossSquad' | 'shurikenOnly' | 'random';
+export type Scenario = 'ashigaru' | 'wave1' | 'waves' | 'boss' | 'bossEasy' | 'flyers' | 'bossSquad' | 'shurikenOnly' | 'random' | 'mirror';
 
 /** 直接注入式输入（每帧可设置按住集合 + 点按） */
 class EnvInput {
@@ -86,6 +88,7 @@ function maxTicks(scenario: Scenario): number {
     case 'bossSquad': return 7200;
     case 'shurikenOnly': return 2400;
     case 'random': return 3000;
+    case 'mirror': return 2400;
   }
 }
 
@@ -93,9 +96,17 @@ export class GameEnv {
   readonly obsSize = OBS_SIZE;
   readonly actionCount = ACTIONS.length;
 
+  /** 镜像对手使用的 ONNX session（self-play 场景共享） */
+  private static mirrorSession: ort.InferenceSession | null = null;
+  static async setMirrorModel(path: string): Promise<void> {
+    GameEnv.mirrorSession = await ort.InferenceSession.create(path);
+  }
+
   private world!: World;
   private input!: EnvInput;
   private player!: Player;
+  private mirror?: Player;
+  private mirrorInput?: EnvInput;
   private t = 0;
   private waveIdx = 0;
   private advanceTarget = -1; // waves 场景：清波后需向右推进到此位置才刷下一波（对齐真实游戏）
@@ -190,6 +201,14 @@ export class GameEnv {
           world.enemies.push(new Flyer(x, stage.groundY - 170 - rand() * 50, 'bat'));
         }
       }
+    } else if (this.scenario === 'mirror') {
+      // Self-play：主玩家 vs 镜像玩家（由固定 ONNX 模型控制）
+      this.mirror = new Player();
+      this.mirror.x = this.player.x + 360;
+      this.mirror.y = stage.groundY - this.mirror.h;
+      this.mirror.facing = -1;
+      this.mirrorInput = new EnvInput();
+      world.enemies.push(new PlayerHittable(this.mirror, this.mirrorInput, world));
     }
 
     this.t = 0;
@@ -233,15 +252,33 @@ export class GameEnv {
     }
   }
 
-  step(actionIdx: number): { obs: number[]; reward: number; done: boolean; info: Record<string, number> } {
+  async step(actionIdx: number): Promise<{ obs: number[]; reward: number; done: boolean; info: Record<string, number> }> {
     const input = this.input;
     const combo = ACTIONS[actionIdx] ?? [];
+
+    // Self-play：每步先推理镜像对手动作
+    if (this.scenario === 'mirror' && this.mirror && this.mirrorInput && GameEnv.mirrorSession) {
+      const mirrorObs = this.observeFor(this.mirror, [new PlayerHittable(this.player, this.input, this.world)]);
+      const mirrorAction = await this.inferMirror(mirrorObs);
+      const mc = ACTIONS[mirrorAction] ?? [];
+      this.mirrorInput.beginTick();
+      this.mirrorInput.clearMomentary();
+      this.mirrorInput.setHeld('left', mc.includes('left'));
+      this.mirrorInput.setHeld('right', mc.includes('right'));
+      for (const a of mc) {
+        if (a !== 'left' && a !== 'right') this.mirrorInput.press(a);
+      }
+    }
 
     // 帧跳跃：一般场景 4 帧/步（15Hz）；Boss 战 2 帧/步（30Hz，残像/连招需要更细的反应粒度）
     const frames = this.scenario === 'boss' ? 2 : 4;
     for (let f = 0; f < frames; f++) {
       input.beginTick();
       input.clearMomentary();
+      if (this.mirrorInput) {
+        this.mirrorInput.beginTick();
+        this.mirrorInput.clearMomentary();
+      }
       if (f === 0) {
         // 映射动作：方向键为按住（整个步内），其余为首帧点按
         input.setHeld('left', combo.includes('left'));
@@ -254,7 +291,7 @@ export class GameEnv {
       if (this.player.state === 'dead') break;
     }
 
-    // —— 极简 Reward（AlphaGo-style sparse）：只保留胜负 + 造成伤害 ——
+    // —— Self-play Reward：胜负 + 造成伤害 ——
     const enemyHp = this.enemyTotalHp();
     const hits = this.world.lastHits;
     let damageReward = 0;
@@ -272,18 +309,8 @@ export class GameEnv {
       reward -= 10;
       done = true;
     } else if (enemiesAlive === 0) {
-      if (this.scenario === 'waves') {
-        if (this.waveIdx < 3) {
-          // 清波后要求向右推进触发下一波（环境构成，与 reward 无关）
-          this.advanceTarget = this.player.centerX + 260;
-        } else {
-          reward += 10; // 通关
-          done = true;
-        }
-      } else {
-        reward += 10; // 通关
-        done = true;
-      }
+      reward += 10; // 通关/击败镜像
+      done = true;
     } else if (this.t >= maxTicks(this.scenario)) {
       reward -= 10; // timeout = fail
       done = true;
@@ -304,6 +331,7 @@ export class GameEnv {
     this.prevKi = this.player.ki;
     this.prevEnemyTotalHp = this.enemyTotalHp();
     this.prevEnemiesAlive = enemiesAlive;
+    const dist = this.nearestEnemyDist();
     this.prevDist = dist;
 
     return {
@@ -315,6 +343,15 @@ export class GameEnv {
         kills: this.totalKills, comboPeak: this.comboPeak, takenCum: 100 - this.player.hp,
       },
     };
+  }
+
+  private async inferMirror(obs: number[]): Promise<number> {
+    if (!GameEnv.mirrorSession) return 0;
+    const tensor = new ort.Tensor('float32', new Float32Array(obs), [1, obs.length]);
+    const results = await GameEnv.mirrorSession.run({ obs: tensor });
+    const data = results.action.data as Int32Array | BigInt64Array;
+    const action = typeof data[0] === 'bigint' ? Number(data[0]) : data[0];
+    return action;
   }
 
   private tick(): void {
@@ -353,7 +390,10 @@ export class GameEnv {
   }
 
   private observe(): number[] {
-    const p = this.player;
+    return this.observeFor(this.player, this.world.enemies);
+  }
+
+  private observeFor(p: Player, enemies: Hittable[]): number[] {
     const w = this.world;
     const obs: number[] = [
       p.x / 2750, p.y / 540, p.vx / 10, p.vy / 10,
@@ -372,7 +412,7 @@ export class GameEnv {
     const stateCode = (s: string): number =>
       ({ idle: 1, chase: 2, windup: 3, thrust: 4, recover: 5, hit: 6, telegraph: 7, dive: 8, climb: 9, aim: 10, combo: 11, dashWindup: 12, dashKick: 13, rising: 14, sweepWindup: 15, sweep: 16 })[s] ?? 0;
 
-    const sorted = [...w.enemies]
+    const sorted = [...enemies]
       .filter((e) => !e.dead)
       .sort((a, b) => Math.abs(a.centerX - p.centerX) - Math.abs(b.centerX - p.centerX))
       .slice(0, 2);
@@ -425,14 +465,19 @@ export class GameEnv {
       np ? Math.max(-1, Math.min(1, (np.y - p.centerY) / 300)) : 0,
     );
 
-    // 战场态势（7 维，替代原 padding）：只给信息，不给方向性奖励
-    const enemiesLeft = w.enemies.some((e) => !e.dead && e.centerX < p.centerX) ? 1 : 0;
-    const enemiesRight = w.enemies.some((e) => !e.dead && e.centerX >= p.centerX) ? 1 : 0;
-    const airCount = Math.min(5, w.enemies.filter((e) => !e.dead && e.centerY < p.centerY - 80).length) / 5;
-    const remaining = Math.min(10, w.enemies.length) / 10;
+    // 战场态势（7 维）
+    const enemiesLeft = enemies.some((e) => !e.dead && e.centerX < p.centerX) ? 1 : 0;
+    const enemiesRight = enemies.some((e) => !e.dead && e.centerX >= p.centerX) ? 1 : 0;
+    const airCount = Math.min(5, enemies.filter((e) => !e.dead && e.centerY < p.centerY - 80).length) / 5;
+    const remaining = Math.min(10, enemies.length) / 10;
     const wave = this.scenario === 'waves' ? this.waveIdx / 3 : 0;
     const advance = this.advanceTarget > 0 ? (this.advanceTarget - p.centerX) / 1000 : -1;
-    const nearestDist = Math.min(1000, this.nearestEnemyDist()) / 1000;
+    let nearestDist = 0;
+    for (const e of enemies) {
+      const d = Math.abs(e.centerX - p.centerX);
+      if (d < nearestDist || nearestDist === 0) nearestDist = d;
+    }
+    nearestDist = Math.min(1000, nearestDist) / 1000;
     obs.push(remaining, wave, enemiesLeft, enemiesRight, airCount, nearestDist, advance);
 
     while (obs.length < OBS_SIZE) obs.push(0);

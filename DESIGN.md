@@ -309,6 +309,12 @@
   - 问题：PPO.load 覆盖了学习率，实际使用 3e-4（不是预期的 3e-5）；训练全程 explained_variance 为负（-0.5 ~ -2.8），value function 完全没学会
   - 结果：比 v0.39 更差——wave1 0/10（平均卡住 1474 帧），完整三波 0/10 全部 timeout，Boss 也大量 timeout
   - 结论：**ppo_wave1 不是合适的迁移起点**，高学习率 + 不同的 reward/归一化分布迅速破坏了原有策略；需要重新考虑方向（self-play / 更长期训练 / 不同初始化）
+- **v0.41（RL 固定镜像 self-play，失败）**：
+  - 方案：新增 `mirror` 场景，主玩家对战由 `ppo_wave1` 固定的镜像对手；reward 用极简胜负 + 伤害
+  - 实现：扩展 `World` 支持 mirror `Player`、新增 `PlayerHittable` 让镜像进入敌人列表、env-server 加载 mirror ONNX
+  - 训练：mirror 100 万步，训练指标健康（EV 0.4+）
+  - 结果：模型在 mirror 场景上学到行为，但**完全不泛化到标准场景**——单足轻 0/10 timeout、wave1 0/10 timeout、完整三波 0/10 timeout、Boss 大量 timeout
+  - 结论：固定对手 self-play 让模型过拟合到镜像行为，无法迁移到真实 waves/boss；若要继续 self-play 必须让对手动态进化
 
 ## 10. TODO / backlog
 
