@@ -70,7 +70,7 @@ export class Waves {
       case 'advance':
         if (this.wave >= this.total) {
           // 清完三波：继续往前走，走到大门口触发守门战（不原地开 boss）
-          if (w.player.centerX > 2540) {
+          if (w.player.centerX > 2970) {
             this.phase = 'gatefight';
             this.spawnGateBoss(w);
           }
@@ -97,19 +97,19 @@ export class Waves {
     }
   }
 
-  /** 大门守卫战：「龙」携双钩使守在大门前，结界封两侧。击败后大门开启（真龙已移入塔第一层） */
+  /** 大门守卫战：「龙」携双钩使守在鸟居出口，结界封两侧。击败后大门开启（真龙已移入塔第一层） */
   private spawnGateBoss(w: World): void {
     this.phase = 'gatefight';
     this.announceTimer = 120;
-    const zone = ZONES[2];
-    this.barrierL = zone.x0 + 12;
-    this.barrierX = zone.x1 - 12;
-    const cx = zone.x1 - 150; // 大门口（鸟居下）
+    const gx = 3050;          // 鸟居位置
+    this.barrierL = gx - 80;  // 2970
+    this.barrierX = gx + 230; // 3280
+    const cx = gx + 100;      // 3150：龙守在鸟居出口
     w.player.hp = Math.min(w.player.maxHp, w.player.hp + 20); // 守门战回复 20 血
     w.player.ki = Math.min(w.player.maxKi, w.player.ki + 20); // 同时回 20 气
-    w.enemies.push(new Boss(cx + 100, w.stage.groundY - 40));
+    w.enemies.push(new Boss(cx + 80, w.stage.groundY - 40));
     w.enemies.push(new HookSoldier(cx - 120, w.stage.groundY - 34));
-    w.enemies.push(new HookSoldier(cx + 220, w.stage.groundY - 34));
+    w.enemies.push(new HookSoldier(cx + 180, w.stage.groundY - 34));
   }
 
   private startWave(w: World, zoneIdx: number): void {
@@ -161,14 +161,8 @@ export class Waves {
       if (x === null) continue;
       this.drawBarrier(ctx, x, groundY, t);
     }
-    // 大门（红色大鸟居）：第三波战斗中不可见，清完第三波往前走才出现
-    const gateVisible =
-      (this.phase === 'advance' && this.wave >= this.total) ||
-      this.phase === 'gatefight' ||
-      this.phase === 'gateopen';
-    if (gateVisible) {
-      this.drawGate(ctx, 2585, groundY, t);
-    }
+    // 大门（红色大鸟居）：地图固定元素，一直存在（第三波战斗时在屏幕右外，往前走才看到）
+    this.drawGate(ctx, 3050, groundY, t);
   }
 
   /** 大门：红色大鸟居（双柱 + 双檐 + 匾额）；开启时门内泛光 */
@@ -202,19 +196,19 @@ export class Waves {
     ctx.fillText('試練の門', x + 88, groundY - 225);
 
     if (open) {
-      // 开启：门内泛光 + 符咒上浮
+      // 开启：门内泛光（盖满整条门洞）+ 符咒上浮
       ctx.globalAlpha = 0.35 + Math.sin(t * 0.15) * 0.12;
-      const g = ctx.createLinearGradient(x - 6, 0, x + 96, 0);
+      const g = ctx.createLinearGradient(x - 8, 0, x + 185, 0);
       g.addColorStop(0, 'rgba(160,200,255,0)');
       g.addColorStop(0.5, 'rgba(160,200,255,0.9)');
       g.addColorStop(1, 'rgba(160,200,255,0)');
       ctx.fillStyle = g;
-      ctx.fillRect(x - 6, groundY - 260, 102, 260);
+      ctx.fillRect(x - 8, groundY - 260, 193, 260);
       ctx.globalAlpha = 1;
-      for (let i = 0; i < 6; i++) {
+      for (let i = 0; i < 10; i++) {
         const yy = groundY - 20 - ((t * 1.5 + i * 40) % 170);
         ctx.fillStyle = '#f5ead8';
-        ctx.fillRect(x + 10 + i * 14, yy, 9, 4);
+        ctx.fillRect(x + 12 + i * 16, yy, 9, 4);
       }
     }
   }

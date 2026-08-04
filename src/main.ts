@@ -32,7 +32,7 @@ let input: Input = new Input();
 const humanInput = input;
 let aiInput: AiInput | null = null;
 const effects = new Effects();
-const stage = new Stage(4150); // 第三波后还有塔区域（RL 环境仍用默认 2750）
+const stage = new Stage(4660); // 第三波后是鸟居+塔区域（RL 环境仍用默认 2750）
 const player = new Player();
 const waves = new Waves();
 const tower = new Tower();
@@ -315,8 +315,8 @@ function tick(): void {
 
   if (!tower.active) {
     waves.update(world);
-    // 大门开启后走向大门 → 进塔
-    if (waves.gateOpen && player.centerX > 2680 && !tower.active) {
+    // 大门开启后穿过鸟居 → 进塔
+    if (waves.gateOpen && player.centerX > 3150 && !tower.active) {
       waves.enabled = false;
       waves.barrierX = null;
       waves.barrierL = null;

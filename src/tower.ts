@@ -6,10 +6,10 @@ import type { World } from './world';
 
 /** 塔竞技场：每层独立物理位置（2800+ 塔区，穿过大门真正"再往前走"），左墙可见石墙，右墙即舞台尽头 */
 const FLOOR_ARENAS = [
-  { L: 2840, R: 3160 },  // 第1层 真龙
-  { L: 3220, R: 3520 },  // 第2层 橘右京
-  { L: 3580, R: 3880 },  // 第3层 不知火舞
-  { L: 3940, R: 4150 },  // 第4层 宫本武藏（塔顶）
+  { L: 3340, R: 3660 },  // 第1层 真龙
+  { L: 3720, R: 4020 },  // 第2层 橘右京
+  { L: 4080, R: 4380 },  // 第3层 不知火舞
+  { L: 4440, R: 4660 },  // 第4层 宫本武藏（塔顶）
 ];
 const FLOOR_NAMES = ['真龍', '橘右京', '不知火舞', '宮本武藏'];
 
@@ -56,6 +56,10 @@ export class Tower {
     w.enemies = [];
     const cx = (this.arenaL + this.arenaR) / 2;
     const gy = w.stage.groundY;
+
+    // 关键：换层必须更新结界到本层竞技场（否则玩家被旧层结界卡住、逐层左移消失）
+    this.barrierL = this.arenaL;
+    this.barrierR = this.arenaR;
 
     // 玩家复位到竞技场左侧
     w.player.x = this.arenaL + 30;
