@@ -182,29 +182,52 @@ export class GameEnv {
       world.enemies.push(new Flyer(this.player.x + 160, stage.groundY - 220, 'crow', { passive: true }));
       // 不刷近战怪，逼它必须用镖
     } else if (this.scenario === 'random') {
-      // 随机战斗课程：2~5 个敌人，类型/方向/距离全随机，覆盖全部 8 类敌人
-      // （足轻加权，保证多数对局可打；金刚/蛊师低频出现练反制）
-      const count = 2 + Math.floor(rand() * 4); // 2..5
-      const types = ['ashigaru', 'ashigaru', 'ashigaru', 'archer', 'hook', 'crow', 'bat', 'bruiser', 'shaman'] as const;
-      for (let i = 0; i < count; i++) {
-        const type = types[Math.floor(rand() * types.length)];
+      // 随机课程：与真实波次对齐难度与种类（用户要求：数量/种类对齐、特定组合、
+      // 掺入真实 wave）——否则模型只会"站桩平A"，遇到弓/钩/高密度就崩。
+      //  25% 真实 wave2/wave3 编成（练真局阵容）
+      //  20% 弓+钩 远程拉扯组（逼学镖/拉开）
+      //  15% 对空组（乌鸦+蝙蝠，逼学空中反制）
+      //  40% 随机混合 3~6 敌（对齐真实密度）
+      const gy = stage.groundY;
+      const px = this.player.x;
+      const r = rand();
+      if (r < 0.25) {
+        this.spawnWave(rand() < 0.5 ? 2 : 3); // 真实 wave2 / wave3 编成
+      } else if (r < 0.45) {
         const side = rand() < 0.5 ? -1 : 1;
-        const dist = 220 + rand() * 380; // 220..600
-        const x = this.player.x + side * dist;
-        if (type === 'ashigaru') {
-          world.enemies.push(Enemy.ashigaru(x, stage.groundY));
-        } else if (type === 'archer') {
-          world.enemies.push(new Archer(x, stage.groundY - 34));
-        } else if (type === 'hook') {
-          world.enemies.push(new HookSoldier(x, stage.groundY - 34));
-        } else if (type === 'crow') {
-          world.enemies.push(new Flyer(x, stage.groundY - 200 - rand() * 60, 'crow'));
-        } else if (type === 'bat') {
-          world.enemies.push(new Flyer(x, stage.groundY - 170 - rand() * 50, 'bat'));
-        } else if (type === 'bruiser') {
-          world.enemies.push(new Bruiser(x, stage.groundY - 46));
-        } else if (type === 'shaman') {
-          world.enemies.push(new Shaman(x, stage.groundY - 32));
+        world.enemies.push(new Archer(px + side * 300, gy - 34));
+        world.enemies.push(new HookSoldier(px + side * 430, gy - 34));
+        for (let i = 0; i < 2; i++) {
+          world.enemies.push(Enemy.ashigaru(px - side * (220 + i * 110), gy));
+        }
+      } else if (r < 0.6) {
+        const side = rand() < 0.5 ? -1 : 1;
+        world.enemies.push(new Flyer(px + side * 260, gy - 210, 'crow'));
+        world.enemies.push(new Flyer(px + side * 340, gy - 180, 'bat'));
+        world.enemies.push(Enemy.ashigaru(px - side * 200, gy));
+      } else {
+        const count = 3 + Math.floor(rand() * 4); // 3..6（对齐真实波次密度）
+        const types = ['ashigaru', 'ashigaru', 'ashigaru', 'archer', 'hook', 'crow', 'bat', 'bruiser', 'shaman'] as const;
+        for (let i = 0; i < count; i++) {
+          const type = types[Math.floor(rand() * types.length)];
+          const side = rand() < 0.5 ? -1 : 1;
+          const dist = 220 + rand() * 380; // 220..600
+          const x = px + side * dist;
+          if (type === 'ashigaru') {
+            world.enemies.push(Enemy.ashigaru(x, gy));
+          } else if (type === 'archer') {
+            world.enemies.push(new Archer(x, gy - 34));
+          } else if (type === 'hook') {
+            world.enemies.push(new HookSoldier(x, gy - 34));
+          } else if (type === 'crow') {
+            world.enemies.push(new Flyer(x, gy - 200 - rand() * 60, 'crow'));
+          } else if (type === 'bat') {
+            world.enemies.push(new Flyer(x, gy - 170 - rand() * 50, 'bat'));
+          } else if (type === 'bruiser') {
+            world.enemies.push(new Bruiser(x, gy - 46));
+          } else if (type === 'shaman') {
+            world.enemies.push(new Shaman(x, gy - 32));
+          }
         }
       }
     } else if (this.scenario === 'mirror') {
