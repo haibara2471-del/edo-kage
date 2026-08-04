@@ -111,6 +111,9 @@ class Driver {
     if (i >= 0) { this.buffer.splice(i, 1); return true; }
     return false;
   }
+  consumeDir(a: string): { consumed: boolean; dir: number } {
+    return { consumed: this.consume(a), dir: 0 }; // AI 用当前朝向
+  }
   apply(action: number): void {
     const combo = ACTIONS[action] ?? [];
     this.held.clear();

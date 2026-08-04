@@ -7,7 +7,7 @@ import { Tower } from './tower';
 import { Title } from './title';
 import { Codex } from './codex';
 import { resolveCombat } from './combat';
-import { drawHUD, drawBossBar } from './ui';
+import { drawHUD, drawBossBar, drawPlayerBars } from './ui';
 import { clamp } from './types';
 import { reseed } from './rng';
 import { reportRun, fetchRun } from './report';
@@ -34,6 +34,8 @@ let aiInput: AiInput | null = null;
 const effects = new Effects();
 const stage = new Stage(4740); // 第三波后是鸟居+塔区域（RL 环境仍用默认 2750）
 const player = new Player();
+// 玩家反馈#5：飞镖方向锁定"按下瞬间的朝向"（先按镖再转身不反向）
+humanInput.setFacingSource(() => player.facing);
 const waves = new Waves();
 const tower = new Tower();
 const title = new Title();
@@ -433,6 +435,7 @@ function render(): void {
   for (const c of world.clouds) c.draw(ctx);
   for (const e of world.enemies) e.draw(ctx);
   player.draw(ctx);
+  drawPlayerBars(ctx, player); // 玩家反馈#4：头顶迷你血条/气条
   effects.drawWorld(ctx);
   ctx.restore();
 

@@ -67,10 +67,15 @@ export function resolveCombat(w: World): void {
     if (a.dead) continue;
     if (rectsOverlap(a.rect, player.rect)) {
       a.dead = true;
-      player.takeHit(a.dmg, a.pull ? -Math.sign(a.vx) : Math.sign(a.vx), w);
+      let dir = Math.sign(a.vx);
       if (a.pull) {
-        // 钟馗式猛拽：直接被拖向钩使
-        player.vx = -Math.sign(a.vx) * 10;
+        // 钟馗式猛拽：拉向钩使当前位置（玩家反馈#3），不拉回出钩原点
+        const t = a.pullTarget && !a.pullTarget.dead ? a.pullTarget : null;
+        dir = t ? Math.sign(t.centerX - player.centerX) || 1 : -dir;
+      }
+      player.takeHit(a.dmg, dir, w);
+      if (a.pull) {
+        player.vx = dir * 10;
         player.vy = -2;
       }
     }

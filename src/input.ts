@@ -16,13 +16,26 @@ const KEYMAP: Record<string, Action> = {
 
 const BUFFER_TICKS = 9; // 输入缓冲窗口：9 帧（=150ms@60Hz），用逻辑帧计时保证回放可复现
 
+interface BufferedAction {
+  action: Action;
+  frame: number;
+  /** 按下瞬间的人物朝向（玩家反馈#5：镖按按下方向飞，先按镖再转身不反向） */
+  dir?: number;
+}
+
 export class Input {
   protected held = new Set<Action>();
-  protected buffer: { action: Action; frame: number }[] = [];
+  protected buffer: BufferedAction[] = [];
   protected frame = 0;
+  protected facingSource: (() => number) | null = null;
 
   /** 输入日志：[帧, 动作, 按下1/松开0]，每局的回放原料 */
   readonly log: { f: number; a: string; d: number }[] = [];
+
+  /** 主流程在 player 创建后调用：记录按下瞬间朝向 */
+  setFacingSource(fn: () => number): void {
+    this.facingSource = fn;
+  }
 
   constructor(listen = true) {
     if (!listen) return; // 回放模式：不接真实键盘
@@ -32,7 +45,7 @@ export class Input {
       e.preventDefault();
       if (e.repeat) return;
       this.held.add(a);
-      this.buffer.push({ action: a, frame: this.frame });
+      this.buffer.push({ action: a, frame: this.frame, dir: this.facingSource?.() ?? 0 });
       this.log.push({ f: this.frame, a, d: 1 });
     });
     window.addEventListener('keyup', (e) => {
@@ -57,6 +70,17 @@ export class Input {
       return true;
     }
     return false;
+  }
+
+  /** 消费缓冲按键并返回按下瞬间朝向（0=未捕获，用当前朝向）；返回 {consumed, dir} */
+  consumeDir(a: Action): { consumed: boolean; dir: number } {
+    const i = this.buffer.findIndex((p) => p.action === a && this.frame - p.frame <= BUFFER_TICKS);
+    if (i >= 0) {
+      const dir = this.buffer[i].dir ?? 0;
+      this.buffer.splice(i, 1);
+      return { consumed: true, dir };
+    }
+    return { consumed: false, dir: 0 };
   }
 
   /** 每个逻辑帧调用：推进内部帧钟并清掉过期缓冲 */

@@ -18,6 +18,20 @@ function bar(
   ctx.fillText(label, x + 4, y + h - 2);
 }
 
+/** 玩家头顶迷你血条/气条（玩家反馈#4）：世界坐标，跟随人物，死亡不画 */
+export function drawPlayerBars(
+  ctx: CanvasRenderingContext2D,
+  p: { centerX: number; y: number; hp: number; maxHp: number; ki: number; maxKi: number; state: string },
+): void {
+  if (p.state === 'dead') return;
+  const w = 36;
+  const h = 4;
+  const x = p.centerX - w / 2;
+  const y = p.y - 18; // 略高于头部（玩家反馈追加）
+  bar(ctx, x, y, w, h, p.hp / p.maxHp, '#e04040', '');
+  bar(ctx, x, y + h + 2, w, h, p.ki / p.maxKi, '#4ad0e0', '');
+}
+
 /** Boss 血条：顶部居中宽条 + 名字 */
 export function drawBossBar(
   ctx: CanvasRenderingContext2D,

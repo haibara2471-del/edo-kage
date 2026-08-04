@@ -319,21 +319,21 @@ export class Player {
       }
     }
 
-    // 手里剑·扇形三连（攻击中不可）：上中下三发，覆盖纵向空间
-    if (
-      this.state !== 'attack' &&
-      this.throwCd <= 0 &&
-      this.ki >= SHURIKEN_COST &&
-      input.consume('shuriken')
-    ) {
-      this.ki -= SHURIKEN_COST;
-      this.throwCd = THROW_CD;
-      const px = this.centerX + this.facing * 16;
-      const py = this.y + 12;
-      for (const a of [-0.24, 0, 0.24]) {
-        w.projectiles.push(
-          new Projectile(px, py, Math.cos(a) * SHURIKEN_SPEED * this.facing, Math.sin(a) * SHURIKEN_SPEED),
-        );
+    // 手里剑·扇形三连（攻击中不可）：上中下三发，覆盖纵向空间。
+    // ★ 方向用"按下瞬间的朝向"（玩家反馈#5）：先按镖再转身，镖仍朝按下方向飞，不反向
+    if (this.state !== 'attack' && this.throwCd <= 0 && this.ki >= SHURIKEN_COST) {
+      const sh = input.consumeDir('shuriken');
+      if (sh.consumed) {
+        this.ki -= SHURIKEN_COST;
+        this.throwCd = THROW_CD;
+        const dir = sh.dir === 0 ? this.facing : sh.dir;
+        const px = this.centerX + dir * 16;
+        const py = this.y + 12;
+        for (const a of [-0.24, 0, 0.24]) {
+          w.projectiles.push(
+            new Projectile(px, py, Math.cos(a) * SHURIKEN_SPEED * dir, Math.sin(a) * SHURIKEN_SPEED),
+          );
+        }
       }
     }
 
@@ -348,9 +348,14 @@ export class Player {
         this.vx *= this.onGround ? 0.7 : 0.98;
       }
     } else {
-      // 挥刀时小步前移，收招时急停
-      const spec = BLADE[this.attackStage - 1];
-      this.vx = this.attackTimer <= spec.activeEnd ? this.facing * 0.8 : this.vx * 0.6;
+      // 行进间挥刀：保留水平动量，不再戛然停止（玩家反馈#1，地面/空中一致）。
+      // 有方向输入取「当前速度与挥刀步进 0.8」较大者——跑着砍保留跑速、站着砍仍小步前移；
+      // 无输入则轻微衰减收招，不硬停
+      if (move !== 0) {
+        this.vx = Math.max(Math.abs(this.vx), 0.8) * move;
+      } else {
+        this.vx *= this.onGround ? 0.85 : 0.99;
+      }
     }
 
     const wasGround = this.onGround;
@@ -370,6 +375,18 @@ export class Player {
   }
 
   draw(ctx: CanvasRenderingContext2D): void {
+    // 血飲 buff 特效（玩家反馈#2）：脉动红光罩，剩余 <25% 时闪烁提示即将结束
+    if (this.vampTimer > 0 && this.state !== 'dead') {
+      const ratio = this.vampTimer / VAMP_TIME;
+      const pulse = ratio < 0.25 ? 0.2 + Math.abs(Math.sin(this.t * 0.5)) * 0.5 : 0.32 + Math.sin(this.t * 0.3) * 0.12;
+      ctx.globalAlpha = Math.max(0.15, pulse);
+      ctx.fillStyle = '#d02040';
+      ctx.beginPath();
+      ctx.arc(this.centerX, this.centerY, 26, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
     // 无敌帧闪烁
     if (
       this.invTimer > 0 &&

@@ -6,7 +6,7 @@ import type { World } from './world';
 
 type State = 'idle' | 'chase' | 'windup' | 'recover' | 'hit' | 'dead';
 
-const HOOK_RANGE = 260;   // 甩钩距离
+const HOOK_RANGE = 200;   // 甩钩距离（260→200：玩家反馈#3 射程太长，设阈值）
 const HOOK_MIN = 120;     // 贴脸不出钩
 const WINDUP_TIME = 18;
 const RECOVER_TIME = 40;
@@ -112,6 +112,8 @@ export class HookSoldier {
               dmg: 6,
               pull: true,
               origin: { x: this.centerX + this.facing * 8, y: this.y + 12 },
+              pullTarget: this,        // 玩家反馈#3：拉向钩使当前位置，而非出钩原点
+              maxDist: HOOK_RANGE + 40, // 飞钩限程：超过甩钩距离即断
             }),
           );
         }

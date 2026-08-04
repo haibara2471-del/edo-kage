@@ -55,6 +55,9 @@ class EnvInput {
     }
     return false;
   }
+  consumeDir(a: string): { consumed: boolean; dir: number } {
+    return { consumed: this.consume(a), dir: 0 }; // AI 用当前朝向
+  }
   tick(): void { /* beginTick 代替 */ }
 }
 
@@ -88,7 +91,7 @@ function maxTicks(scenario: Scenario): number {
     case 'flyers': return 3000;
     case 'bossSquad': return 7200;
     case 'shurikenOnly': return 2400;
-    case 'random': return 3000;
+    case 'random': return 3000; // v0.45c 隔离实验：回退 4800→3000（v0.45/v0.45b 两次带 4800 都崩战斗），保留推进分支
     case 'mirror': return 2400;
   }
 }
@@ -110,7 +113,10 @@ export class GameEnv {
   private mirrorInput?: EnvInput;
   private t = 0;
   private waveIdx = 0;
-  private advanceTarget = -1; // waves 场景：清波后需向右推进到此位置才刷下一波（对齐真实游戏）
+  private advanceTarget = -1; // 清波后需向右推进到此位置才刷下一波（对齐真实游戏）
+  private allowAdvance = false; // 本局是否启用推进机制（waves / random 推进分支）
+  private advanceWaves = 0;     // 本局总波数（waves=3，推进分支=2），清完最后一波才 done
+  private wavesInEpisode = 0;   // 本局已刷波数（不依赖 waveIdx 编号，推进分支复用 wave1）
   private prevCx = 0;
   private prevPlayerHp = 100;
   private prevEnemyTotalHp = 0;
@@ -149,6 +155,9 @@ export class GameEnv {
       lastHits: [],
     };
     this.world = world;
+    this.allowAdvance = false;
+    this.advanceWaves = 0;
+    this.wavesInEpisode = 0;
 
     if (this.scenario === 'ashigaru') {
       world.enemies.push(Enemy.ashigaru(this.player.x + 90, stage.groundY));
@@ -157,7 +166,10 @@ export class GameEnv {
         world.enemies.push(Enemy.ashigaru(this.player.x + 140 + i * 120, stage.groundY));
       }
     } else if (this.scenario === 'waves') {
+      this.allowAdvance = true;
+      this.advanceWaves = 3;
       this.spawnWave(1);
+      this.wavesInEpisode = 1;
     } else if (this.scenario === 'boss') {
       world.enemies.push(new Boss(this.player.x + 90, stage.groundY - 40));
     } else if (this.scenario === 'bossEasy') {
@@ -183,18 +195,24 @@ export class GameEnv {
       // 不刷近战怪，逼它必须用镖
     } else if (this.scenario === 'random') {
       // 随机课程：与真实波次对齐难度与种类（用户要求：数量/种类对齐、特定组合、
-      // 掺入真实 wave）——否则模型只会"站桩平A"，遇到弓/钩/高密度就崩。
-      //  25% 真实 wave2/wave3 编成（练真局阵容）
-      //  20% 弓+钩 远程拉扯组（逼学镖/拉开）
-      //  15% 对空组（乌鸦+蝙蝠，逼学空中反制）
+      // 掺入真实 wave、教 advance 推进机制）。v0.45 教训：推进分支若掺 wave2 这种
+      // 硬编成会扭曲基础战斗（足轻×3 100%→0%），故 v0.45b 改为易版 wave1+wave1、占比 15%。
+      //  15% 推进分支（易）：wave1 → 清场 → 向右推进 260px → 再刷 wave1（只教 advance）
+      //  20% 单房间真实 wave1/2
+      //  15% 弓+钩 远程拉扯组（逼学镖/拉开）
+      //  10% 对空组（乌鸦+蝙蝠，逼学空中反制）
       //  40% 随机混合 3~6 敌（对齐真实密度）
       const gy = stage.groundY;
       const px = this.player.x;
       const r = rand();
       if (r < 0.15) {
-        this.spawnWave(1); // 真实 wave1：3 足轻，可赢战斗，bootstrap 用
+        // 推进分支（v0.45b 易版）：清 wave1 → 向右推进 260px → 再刷 wave1（教 advance 机制）
+        this.allowAdvance = true;
+        this.advanceWaves = 2;
+        this.spawnWave(1);
+        this.wavesInEpisode = 1;
       } else if (r < 0.35) {
-        this.spawnWave(rand() < 0.5 ? 2 : 3); // 真实 wave2 / wave3 编成（6 敌）
+        this.spawnWave(rand() < 0.5 ? 1 : 2); // 单房间真实 wave1 / wave2
       } else if (r < 0.5) {
         const side = rand() < 0.5 ? -1 : 1;
         world.enemies.push(new Archer(px + side * 300, gy - 34));
@@ -340,9 +358,7 @@ export class GameEnv {
     const damageReward = bladeDmg * 1.0 + skillDmg * 0.5;
 
     const taken = Math.max(0, this.prevPlayerHp - this.player.hp);
-    const hpRatio = Math.max(0.1, this.player.hp / 100);
-    const damageScale = 1 + 2 * (1 - hpRatio); // 满血 1x / 半血 2x / 残血 3x
-    const takenPenalty = taken * 0.05 * damageScale; // 基础 0.1→0.05：v0.36 已记录 0.1 抑制近战换血
+    const takenPenalty = taken * 0.15; // 承伤 0.03→0.15（v0.44b）：v0.44 回放证明 0.03 无避伤梯度（脸接90伤只亏2.7），5× 造梯度；去残血放大，残局不吓退
 
     const enemiesAlive = this.world.enemies.length;
     const killsNow = Math.max(0, this.prevEnemiesAlive - enemiesAlive);
@@ -350,28 +366,33 @@ export class GameEnv {
 
     const inactivityPenalty = (enemiesAlive > 0 && windowDmg < 0.1) ? -0.03 : 0;
 
+    // 推进奖励（v0.45）：advance 阶段（清场后）右移给正奖励，教 AI 在"前进指示"下向右走触发下一波
+    let advanceReward = 0;
+    if (this.advanceTarget > 0) {
+      advanceReward = (this.player.centerX - this.prevCx) * 0.15;
+    }
+
     let reward =
       damageReward +       // 输出伤害（刀/技能/飞镖）
-      killsNow * 50 -      // 击杀重赏（+100→+50：与伤害 ~900 同量级，避免击杀尖峰在 norm_reward 下压灭 dense 信号）
-      takenPenalty +       // 承伤惩罚：与剩余血量反比（满血1x/半血2x/残血3x）
-      -0.05 * frames +     // ★ 时间惩罚符号修复：v0.42 误写为 +0.05*frames（存活奖励），实为 -0.2/步，逼 AI 尽快清场而非蹲到 timeout
-      inactivityPenalty;   // 活跃惩罚：防站桩
+      killsNow * 15 -      // 击杀 +50→+15（v0.44）：击杀尖峰不再压灭 dense 信号；收残敌边际 +15 vs 拖着=时间持续在亏
+      takenPenalty +       // 承伤惩罚（v0.44b：0.03→0.15，无残血放大——造避伤梯度）
+      -0.1 * frames +      // ★ 时间惩罚符号修复(v0.42)：v0.44 从 -0.05 提到 -0.1/帧（=-0.4/步），归一后不再形同虚设，逼 AI 终结而非拖延
+      inactivityPenalty +  // 活跃惩罚：防站桩
+      advanceReward;       // 推进奖励：清场后右移 +0.15/px（260px≈+39）
     let done = false;
 
     if (this.player.state === 'dead') {
       reward -= 50; // 死亡重罚
       done = true;
     } else if (enemiesAlive === 0) {
-      if (this.scenario === 'waves') {
-        if (this.waveIdx < 3) {
-          // 清波后要求向右推进触发下一波（环境构成，与 reward 无关）
+      if (this.allowAdvance && this.wavesInEpisode < this.advanceWaves) {
+        // 清波后要求向右推进触发下一波（环境构成，推进奖励激励右移）。
+        // ★ 必须用 advanceTarget<0 守卫只设一次——否则每步都重设，目标永远追不上（原 bug）
+        if (this.advanceTarget < 0) {
           this.advanceTarget = this.player.centerX + 260;
-        } else {
-          reward += 50 + this.player.hp * 0.02; // 通关重赏 + 剩余血量加成
-          done = true;
         }
       } else {
-        reward += 50 + this.player.hp * 0.02; // 通关重赏
+        reward += 50 + this.player.hp * 0.02; // 通关重赏 + 剩余血量加成
         done = true;
       }
     } else if (this.t >= maxTicks(this.scenario)) {
@@ -379,11 +400,16 @@ export class GameEnv {
       done = true;
     }
 
-    // waves 推进阶段（环境构成）：到达即刷下一波
-    if (!done && this.scenario === 'waves' && this.advanceTarget > 0) {
+    // 推进阶段（环境构成）：到达即刷下一波
+    if (!done && this.allowAdvance && this.advanceTarget > 0) {
       if (this.player.centerX >= this.advanceTarget) {
         this.advanceTarget = -1;
-        this.spawnWave(this.waveIdx + 1);
+        if (this.scenario === 'waves') {
+          this.spawnWave(this.waveIdx + 1);
+        } else {
+          this.spawnWave(1); // 推进分支：再刷一波 easy wave1
+        }
+        this.wavesInEpisode++;
         this.prevEnemyTotalHp = this.enemyTotalHp();
       }
     }

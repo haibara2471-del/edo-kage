@@ -52,18 +52,24 @@ export class Arrow {
   readonly homing: boolean;
   private readonly ox: number; // 发射原点（钩索画锁链用）
   private readonly oy: number;
+  /** 钩索的施术者（玩家反馈#3：拉向它当前位置）；结构类型避免循环依赖 */
+  readonly pullTarget: { centerX: number; dead: boolean } | undefined;
+  /** 飞钩限程（px）：超过即断链（玩家反馈#3 射程阈值） */
+  readonly maxDist: number | undefined;
 
   constructor(
     public x: number,
     public y: number,
     public vx: number,
-    opts: { dmg?: number; pull?: boolean; homing?: boolean; origin?: { x: number; y: number } } = {},
+    opts: { dmg?: number; pull?: boolean; homing?: boolean; origin?: { x: number; y: number }; pullTarget?: { centerX: number; dead: boolean }; maxDist?: number } = {},
   ) {
     this.dmg = opts.dmg ?? 8;
     this.pull = opts.pull ?? false;
     this.homing = opts.homing ?? false;
     this.ox = opts.origin?.x ?? x;
     this.oy = opts.origin?.y ?? y;
+    this.pullTarget = opts.pullTarget;
+    this.maxDist = opts.maxDist;
   }
 
   get rect(): Rect {
@@ -94,8 +100,11 @@ export class Arrow {
         this.y += this.vy;
       }
     }
-    if (this.x < -20 || this.x > stage.width + 20 || this.y > stage.groundY) {
-      this.dead = true;
+    if (
+      this.x < -20 || this.x > stage.width + 20 || this.y > stage.groundY ||
+      (this.pull && this.maxDist !== undefined && Math.abs(this.x - this.ox) > this.maxDist)
+    ) {
+      this.dead = true; // 飞钩超过射程即断（玩家反馈#3）
       return;
     }
     for (const p of stage.platforms) {
