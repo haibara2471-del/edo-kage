@@ -312,7 +312,7 @@ export class GameEnv {
     const taken = Math.max(0, this.prevPlayerHp - this.player.hp);
     const hpRatio = Math.max(0.1, this.player.hp / 100);
     const damageScale = 1 + 2 * (1 - hpRatio); // 满血 1x / 半血 2x / 残血 3x
-    const takenPenalty = taken * 0.1 * damageScale;
+    const takenPenalty = taken * 0.05 * damageScale; // 基础 0.1→0.05：v0.36 已记录 0.1 抑制近战换血
 
     const enemiesAlive = this.world.enemies.length;
     const killsNow = Math.max(0, this.prevEnemiesAlive - enemiesAlive);
@@ -322,9 +322,9 @@ export class GameEnv {
 
     let reward =
       damageReward +       // 输出伤害（刀/技能/飞镖）
-      killsNow * 100 -     // 击杀重赏：让清场成为绝对主导信号
-      takenPenalty +       // 承伤惩罚翻倍：残血时更怕挨打
-      0.05 * frames +      // 时间惩罚：逼 AI 主动找正回报
+      killsNow * 50 -      // 击杀重赏（+100→+50：与伤害 ~900 同量级，避免击杀尖峰在 norm_reward 下压灭 dense 信号）
+      takenPenalty +       // 承伤惩罚：与剩余血量反比（满血1x/半血2x/残血3x）
+      -0.05 * frames +     // ★ 时间惩罚符号修复：v0.42 误写为 +0.05*frames（存活奖励），实为 -0.2/步，逼 AI 尽快清场而非蹲到 timeout
       inactivityPenalty;   // 活跃惩罚：防站桩
     let done = false;
 

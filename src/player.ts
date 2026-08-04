@@ -44,7 +44,7 @@ const ORB_COST = 25;        // 水月の術
 const VAMP_COST = 20;       // 血飲：吸血 buff
 const VAMP_TIME = 180;      // 3 秒
 const VAMP_CD = 480;        // 8 秒
-const VAMP_RATIO = 0.3;     // 造成伤害的 30% 回血
+const VAMP_RATIO = 0.7;     // 造成伤害的 70% 回血（30%→70%：时长短 3s + CD 8s，30% 偏弱）
 
 type State = 'idle' | 'run' | 'air' | 'attack' | 'launcher' | 'flurry' | 'dash' | 'hit' | 'dead';
 
