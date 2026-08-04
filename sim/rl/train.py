@@ -51,7 +51,7 @@ def main():
         eval_env,
         best_model_save_path=".",
         log_path=".",
-        eval_freq=40_000,       # 每 4 万步评估一次（总步数计）
+        eval_freq=max(40_000 // N_ENVS, 1),  # n_calls 每 16 步一次 → 2500 才等价于每 4 万步评估
         n_eval_episodes=10,
         deterministic=True,
         verbose=1,
