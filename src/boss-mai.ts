@@ -12,6 +12,7 @@ import type { World } from './world';
  */
 export class MaiBoss extends TowerBoss {
   readonly name = '不知火舞';
+  readonly codexId = 'mai' as const;
 
   constructor(x: number, y: number) {
     super(x, y, 200);

@@ -16,13 +16,16 @@ export class Stage {
   /** 地面连续无间断（v0.16 移除飞索与深沟） */
   readonly grounds: { x0: number; x1: number }[] = [{ x0: 0, x1: 2750 }];
 
-  readonly platforms: Rect[] = [
+  private readonly _platforms: Rect[] = [
     { x: 380, y: 362, w: 130, h: 16 },
     { x: 880, y: 300, w: 130, h: 16 },
     { x: 1420, y: 346, w: 130, h: 16 },
     { x: 1780, y: 288, w: 150, h: 16 },
     { x: 2410, y: 350, w: 120, h: 16 },
   ];
+  /** 平台覆盖：塔内置空 = 平地 Boss 房（否则舞台的平台隐形但实体化 = bug）；null = 正常关卡 */
+  platformsOverride: Rect[] | null = null;
+  get platforms(): Rect[] { return this.platformsOverride ?? this._platforms; }
 
   /** 前景櫓（木瞭望台）：可站立的塔 */
   readonly towers: { x: number; topY: number }[] = [
@@ -59,7 +62,7 @@ export class Stage {
     this.lanterns = [{ x: 340 }, { x: 760 }, { x: 1420 }, { x: 1900 }, { x: 2600 }];
 
     // 塔顶台面可站立（假山 bump 只给前 5 个岩石平台生成）
-    for (const t of this.towers) this.platforms.push({ x: t.x - 8, y: t.topY, w: 44, h: 8 });
+    for (const t of this.towers) this._platforms.push({ x: t.x - 8, y: t.topY, w: 44, h: 8 });
 
     for (const p of this.platforms.slice(0, 5)) {
       const bumps: RockBump[] = [];

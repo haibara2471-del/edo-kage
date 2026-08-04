@@ -11,6 +11,7 @@ import type { World } from './world';
  */
 export class KyoshiroBoss extends TowerBoss {
   readonly name = '橘右京';
+  readonly codexId = 'kyoshiro' as const;
   private thrustTwice = false; // 二阶段二连突第二段
 
   constructor(x: number, y: number) {

@@ -161,55 +161,56 @@ export class Waves {
       if (x === null) continue;
       this.drawBarrier(ctx, x, groundY, t);
     }
-    // 大门（红色鸟居）：清完三波就能看见，走到门下触发守门战
+    // 大门（红色大鸟居）：清完三波就能看见，走到门下触发守门战
     if (this.wave >= this.total && this.phase !== 'done') {
-      this.drawGate(ctx, 2660, groundY, t);
+      this.drawGate(ctx, 2630, groundY, t);
     }
   }
 
-  /** 大门：红色鸟居（两根主柱 + 两重檐 + 匾额）；开启时门内泛光 */
+  /** 大门：红色大鸟居（双柱 + 双檐 + 匾额）；开启时门内泛光 */
   private drawGate(ctx: CanvasRenderingContext2D, x: number, groundY: number, t: number): void {
     const open = this.phase === 'gateopen';
     ctx.fillStyle = '#b03040';
-    ctx.fillRect(x, groundY - 220, 7, 220);   // 左柱
-    ctx.fillRect(x + 40, groundY - 220, 7, 220); // 右柱
+    // 两根粗主柱（更高）
+    ctx.fillRect(x, groundY - 260, 11, 260);
+    ctx.fillRect(x + 79, groundY - 260, 11, 260);
     ctx.fillStyle = '#c84850';
-    ctx.fillRect(x + 2, groundY - 220, 3, 220);
-    ctx.fillRect(x + 42, groundY - 220, 3, 220);
-    // 笠木（上弧横梁）
+    ctx.fillRect(x + 3, groundY - 260, 4, 260);
+    ctx.fillRect(x + 82, groundY - 260, 4, 260);
+    // 笠木（上弧横梁，外展）
     ctx.fillStyle = '#c84850';
     ctx.beginPath();
-    ctx.moveTo(x - 14, groundY - 226);
-    ctx.quadraticCurveTo(x + 23, groundY - 254, x + 61, groundY - 226);
-    ctx.lineTo(x + 61, groundY - 216);
-    ctx.quadraticCurveTo(x + 23, groundY - 244, x - 14, groundY - 216);
+    ctx.moveTo(x - 22, groundY - 266);
+    ctx.quadraticCurveTo(x + 45, groundY - 306, x + 112, groundY - 266);
+    ctx.lineTo(x + 112, groundY - 252);
+    ctx.quadraticCurveTo(x + 45, groundY - 292, x - 22, groundY - 252);
     ctx.closePath();
     ctx.fill();
     // 岛木（下横梁）
     ctx.fillStyle = '#b03040';
-    ctx.fillRect(x - 6, groundY - 196, 59, 5);
+    ctx.fillRect(x - 10, groundY - 232, 110, 7);
     // 匾额
     ctx.fillStyle = '#1c2440';
-    ctx.fillRect(x + 4, groundY - 190, 39, 10);
+    ctx.fillRect(x + 8, groundY - 224, 74, 14);
     ctx.fillStyle = '#e8d8a0';
-    ctx.font = 'bold 9px "Yu Mincho","MS Mincho",serif';
+    ctx.font = 'bold 13px "Yu Mincho","MS Mincho",serif';
     ctx.textAlign = 'center';
-    ctx.fillText('試練の門', x + 23, groundY - 182);
+    ctx.fillText('試練の門', x + 45, groundY - 213);
 
     if (open) {
       // 开启：门内泛光 + 符咒上浮
       ctx.globalAlpha = 0.35 + Math.sin(t * 0.15) * 0.12;
-      const g = ctx.createLinearGradient(x - 4, 0, x + 50, 0);
+      const g = ctx.createLinearGradient(x - 6, 0, x + 96, 0);
       g.addColorStop(0, 'rgba(160,200,255,0)');
       g.addColorStop(0.5, 'rgba(160,200,255,0.9)');
       g.addColorStop(1, 'rgba(160,200,255,0)');
       ctx.fillStyle = g;
-      ctx.fillRect(x - 4, groundY - 220, 54, 220);
+      ctx.fillRect(x - 6, groundY - 260, 102, 260);
       ctx.globalAlpha = 1;
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < 6; i++) {
         const yy = groundY - 20 - ((t * 1.5 + i * 40) % 170);
         ctx.fillStyle = '#f5ead8';
-        ctx.fillRect(x + 8 + i * 10, yy, 8, 4);
+        ctx.fillRect(x + 10 + i * 14, yy, 9, 4);
       }
     }
   }

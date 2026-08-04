@@ -41,6 +41,7 @@ export class Tower {
     this.active = true;
     this.barrierL = ARENA_L;
     this.barrierR = ARENA_R;
+    w.stage.platformsOverride = []; // 平地 Boss 房：舞台隐形平台不再实体化
     this.respawn = -1;
     this.enterFloor(w, false);
   }

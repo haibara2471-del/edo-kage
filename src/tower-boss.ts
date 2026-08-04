@@ -18,7 +18,6 @@ export abstract class TowerBoss {
 
   hp: number;
   readonly maxHp: number;
-  readonly codexId = 'boss' as const;
 
   state: string = 'idle';
   timer = 0;

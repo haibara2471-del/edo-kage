@@ -1,7 +1,12 @@
-import { drawAshigaru, drawFlyer, drawArcher, drawHookSoldier, drawBruiser, drawShaman, drawBoss } from './characters';
+import {
+  drawAshigaru, drawFlyer, drawArcher, drawHookSoldier, drawBruiser, drawShaman, drawBoss,
+  drawKyoshiro, drawMai, drawMusashi,
+} from './characters';
 import type { Input } from './input';
 
-export type CodexId = 'ashigaru' | 'archer' | 'hook' | 'bruiser' | 'shaman' | 'crow' | 'bat' | 'boss';
+export type CodexId =
+  | 'ashigaru' | 'archer' | 'hook' | 'bruiser' | 'shaman' | 'crow' | 'bat' | 'boss'
+  | 'kyoshiro' | 'mai' | 'musashi';
 
 interface Entry {
   id: CodexId;
@@ -83,6 +88,18 @@ const ENTRIES: Entry[] = [
   {
     id: 'boss', jp: '龍', cn: '异邦武僧', hp: 200, atk: 12,
     flavor: ['三连踢/飞踢/升龙/残像。', '他的招都有前摇——', '看清楚了再动手。'],
+  },
+  {
+    id: 'kyoshiro', jp: '橘右京', cn: '拔刀剑士', hp: 220, atk: 10,
+    flavor: ['居合/燕返/拔刀蓄力。', '蓄力是活靶子，打断。', '一闪穿过后打收招。'],
+  },
+  {
+    id: 'mai', jp: '不知火舞', cn: '凤凰扇舞', hp: 200, atk: 8,
+    flavor: ['蝶舞扇/焰舞地火。', '弹道是水平的——', '跳过去，忍蜂前摇瞬身穿。'],
+  },
+  {
+    id: 'musashi', jp: '宮本武藏', cn: '二天一流', hp: 280, atk: 12,
+    flavor: ['神速突刺带无敌帧。', '奥义前摇很长——', '跑出范围等他舞完。'],
   },
 ];
 
@@ -250,6 +267,15 @@ export class Codex {
             break;
           case 'boss':
             drawBoss(ctx, -11, -20, 22, 40, 1, { state: 'idle', t, timer: 0, flash: 0 });
+            break;
+          case 'kyoshiro':
+            drawKyoshiro(ctx, -12, -21, 24, 42, 1, { state: 'idle', t, timer: 0, flash: 0 });
+            break;
+          case 'mai':
+            drawMai(ctx, -12, -21, 24, 42, 1, { state: 'idle', t, timer: 0, flash: 0 });
+            break;
+          case 'musashi':
+            drawMusashi(ctx, -12, -21, 24, 42, 1, { state: 'idle', t, timer: 0, flash: 0 });
             break;
           default:
             drawFlyer(ctx, -9, -6, 18, 12, 1, e.id, t, 'circle', 0);

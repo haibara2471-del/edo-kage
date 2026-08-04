@@ -12,6 +12,7 @@ import type { World } from './world';
  */
 export class MusashiBoss extends TowerBoss {
   readonly name = '宮本武藏';
+  readonly codexId = 'musashi' as const;
   private comboStage = 1;
   private ultHit = 0;
   private ultSecond = false; // 二阶段奥义是否已连放第二次
