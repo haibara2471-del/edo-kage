@@ -128,10 +128,10 @@ export class Player {
     this.ki = Math.min(this.maxKi, this.ki + KI_PER_HIT);
   }
 
-  /** 吸血：开启血饮 buff 时，按伤害比例回血 */
+  /** 吸血：开启血饮 buff 时，按伤害比例回血（取整） */
   applyVamp(dmg: number): void {
     if (this.vampTimer > 0) {
-      this.hp = Math.min(this.maxHp, this.hp + dmg * VAMP_RATIO);
+      this.hp = Math.min(this.maxHp, this.hp + Math.floor(dmg * VAMP_RATIO));
     }
   }
 
