@@ -56,6 +56,7 @@ class BatchVecEnv(VecEnv):
         self.scenario = scenario
         self.sids = [f"v{i}_{os.getpid()}" for i in range(n_envs)]
         self.http = requests.Session()
+        self._round = 0  # 每轮 reset 递增，驱动 server 端 seed+i*97 生成全新布局
         obs_space = spaces.Box(
             low=-np.inf, high=np.inf, shape=(meta["obsSize"],), dtype=np.float32
         )
@@ -64,9 +65,11 @@ class BatchVecEnv(VecEnv):
         self._pending = {}
 
     def reset(self):
+        self._round += 1
+        base = self._round * 100003  # 每轮全新 base，server 端再 +i*97 逐环境错开
         data = self.http.post(
             f"{SERVER}/vreset",
-            json={"sessions": self.sids, "scenario": self.scenario, "seed": 1},
+            json={"sessions": self.sids, "scenario": self.scenario, "seed": base},
             timeout=15,
         ).json()["obs"]
         return np.stack([data[s] for s in self.sids]).astype(np.float32)
@@ -91,9 +94,11 @@ class BatchVecEnv(VecEnv):
             dones.append(done)
             infos.append(info)
         if redo:
+            self._round += 1  # 单环境 done 后重开也换新布局
+            base = self._round * 100003
             fresh = self.http.post(
                 f"{SERVER}/vreset",
-                json={"sessions": redo, "scenario": self.scenario, "seed": 1},
+                json={"sessions": redo, "scenario": self.scenario, "seed": base},
                 timeout=15,
             ).json()["obs"]
             for i, s in enumerate(self.sids):

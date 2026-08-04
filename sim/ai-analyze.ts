@@ -30,7 +30,7 @@ import type { World } from '../src/world';
 const OBS_SIZE = 42;
 const ACTIONS: string[][] = [
   [], ['left'], ['right'], ['jump'], ['attack'], ['shuriken'], ['dash'],
-  ['skillU'], ['skillH'], ['skillO'],
+  ['skillU'], ['skillH'], ['skillO'], ['vamp'],
   ['left', 'attack'], ['right', 'attack'], ['left', 'jump'], ['right', 'jump'],
 ];
 

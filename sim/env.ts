@@ -182,9 +182,10 @@ export class GameEnv {
       world.enemies.push(new Flyer(this.player.x + 160, stage.groundY - 220, 'crow', { passive: true }));
       // 不刷近战怪，逼它必须用镖
     } else if (this.scenario === 'random') {
-      // 随机战斗：2~5 个敌人，类型/方向/距离全随机，训练通用战斗而非过拟合固定波次
+      // 随机战斗课程：2~5 个敌人，类型/方向/距离全随机，覆盖全部 8 类敌人
+      // （足轻加权，保证多数对局可打；金刚/蛊师低频出现练反制）
       const count = 2 + Math.floor(rand() * 4); // 2..5
-      const types = ['ashigaru', 'archer', 'hook', 'crow', 'bat'] as const;
+      const types = ['ashigaru', 'ashigaru', 'ashigaru', 'archer', 'hook', 'crow', 'bat', 'bruiser', 'shaman'] as const;
       for (let i = 0; i < count; i++) {
         const type = types[Math.floor(rand() * types.length)];
         const side = rand() < 0.5 ? -1 : 1;
@@ -200,6 +201,10 @@ export class GameEnv {
           world.enemies.push(new Flyer(x, stage.groundY - 200 - rand() * 60, 'crow'));
         } else if (type === 'bat') {
           world.enemies.push(new Flyer(x, stage.groundY - 170 - rand() * 50, 'bat'));
+        } else if (type === 'bruiser') {
+          world.enemies.push(new Bruiser(x, stage.groundY - 46));
+        } else if (type === 'shaman') {
+          world.enemies.push(new Shaman(x, stage.groundY - 32));
         }
       }
     } else if (this.scenario === 'mirror') {

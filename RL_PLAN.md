@@ -116,6 +116,7 @@ random   随机战斗（2~5 个敌人，类型/方向/距离随机）——训�
 - [x] ppo_wave1 迁移 fine-tune waves（失败）
 - [x] 固定镜像 self-play（失败）
 - [x] v0.42 胜利导向 reward 训练 100 万步
+- [x] v0.43 时间惩罚符号修复 + 课程纪律恢复（训练=random 随机课程 / 测试=waves 固定）
 
 ---
 
