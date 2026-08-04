@@ -226,6 +226,7 @@ window.addEventListener('keydown', (e) => {
     world.camX = clamp(player.centerX - VIEW_W / 2, 0, stage.width - VIEW_W);
   }
   if (e.code === 'KeyN') world.enemies.length = 0; // 秒清当前波（测结界开门）
+  if (e.code === 'KeyC') codex.reset(); // 清空图鉴解锁（重测用）
 });
 
 function tick(): void {

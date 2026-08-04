@@ -134,6 +134,14 @@ export class Codex {
     } catch { /* 忽略 */ }
   }
 
+  /** 清空图鉴解锁（debug 用：禅模式按 C，清掉旧测试数据重新收集） */
+  reset(): void {
+    this.seen.clear();
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch { /* 忽略 */ }
+  }
+
   /** 返回 true 表示关闭图鉴 */
   update(input: Input): boolean {
     if (input.consume('left') || input.consume('right')) {
