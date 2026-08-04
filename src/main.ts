@@ -28,6 +28,8 @@ const ctx = canvas.getContext('2d')!;
 ctx.imageSmoothingEnabled = false;
 
 let input: Input = new Input();
+const humanInput = input;
+let aiInput: AiInput | null = null;
 const effects = new Effects();
 const stage = new Stage();
 const player = new Player();
@@ -165,6 +167,29 @@ window.addEventListener('keydown', (e) => {
   if (!DEBUG || mode !== 'play') return;
   // —— 开发者调试（?debug=1 显示 DEBUG 标记与 G 无敌）——
   if (e.code === 'KeyG') player.god = !player.god;   // 无敌开关（Z-E-N 也可）
+  if (e.code === 'KeyP') {
+    // P：切换 AI 代打/人工操作（方便试玩观察训练好的模型）
+    if (!aiPlay) {
+      if (!aiInput) {
+        aiInput = new AiInput(world);
+        void aiInput.init('models/ppo_waves.onnx');
+      }
+      world.input = aiInput;
+      aiPlay = true;
+      debugUsed = true;
+      console.log('AI 代打开启');
+    } else {
+      world.input = humanInput;
+      aiPlay = false;
+      console.log('AI 代打关闭');
+    }
+  }
+  if (e.code === 'KeyY') {
+    // Y：回满血和气
+    player.hp = 100;
+    player.ki = 100;
+    debugUsed = true;
+  }
 });
 
 /** 传送/清场调试键：仅「禅」模式（Z-E-N 开启无敌）下生效，玩家无法使用 */
