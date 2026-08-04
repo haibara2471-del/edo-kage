@@ -62,21 +62,23 @@ export class Waves {
 
       case 'fight':
         if (w.enemies.length === 0) {
-          if (this.wave >= this.total) {
-            this.phase = 'gatefight';
-            this.spawnGateBoss(w);
-          } else {
-            this.phase = 'advance';
-            this.barrierX = null;
-          }
+          this.phase = 'advance';
+          this.barrierX = null;
         }
         break;
 
-      case 'advance': {
-        const next = ZONES[this.wave]; // 下一战区（wave 为已完成的波数）
-        if (w.player.centerX > next.x0 + 80) this.startWave(w, this.wave);
+      case 'advance':
+        if (this.wave >= this.total) {
+          // 清完三波：继续往前走，走到大门口触发守门战（不原地开 boss）
+          if (w.player.centerX > 2540) {
+            this.phase = 'gatefight';
+            this.spawnGateBoss(w);
+          }
+        } else {
+          const next = ZONES[this.wave]; // 下一战区（wave 为已完成的波数）
+          if (w.player.centerX > next.x0 + 80) this.startWave(w, this.wave);
+        }
         break;
-      }
 
       case 'gatefight': // 守门「龙」被击败 → 大门开启
         if (w.enemies.length === 0) {
@@ -102,7 +104,7 @@ export class Waves {
     const zone = ZONES[2];
     this.barrierL = zone.x0 + 12;
     this.barrierX = zone.x1 - 12;
-    const cx = zone.x0 + (zone.x1 - zone.x0) * 0.7; // 靠近大门
+    const cx = zone.x1 - 150; // 大门口（鸟居下）
     w.player.hp = Math.min(w.player.maxHp, w.player.hp + 20); // 守门战回复 20 血
     w.player.ki = Math.min(w.player.maxKi, w.player.ki + 20); // 同时回 20 气
     w.enemies.push(new Boss(cx + 100, w.stage.groundY - 40));
@@ -159,44 +161,55 @@ export class Waves {
       if (x === null) continue;
       this.drawBarrier(ctx, x, groundY, t);
     }
-    // 大门（第三战区尽头，龙守门处）：未开是封印石门，开启后泛光
-    if (this.phase === 'gatefight' || this.phase === 'gateopen') {
-      this.drawGate(ctx, 2725, groundY, t);
+    // 大门（红色鸟居）：清完三波就能看见，走到门下触发守门战
+    if (this.wave >= this.total && this.phase !== 'done') {
+      this.drawGate(ctx, 2660, groundY, t);
     }
   }
 
-  /** 大门：两根石柱 + 横梁；开启时中央封印札消散、泛蓝光 */
+  /** 大门：红色鸟居（两根主柱 + 两重檐 + 匾额）；开启时门内泛光 */
   private drawGate(ctx: CanvasRenderingContext2D, x: number, groundY: number, t: number): void {
     const open = this.phase === 'gateopen';
-    ctx.fillStyle = '#2a3560';
-    ctx.fillRect(x - 4, groundY - 200, 8, 200);   // 左柱
-    ctx.fillRect(x + 46, groundY - 200, 8, 200);  // 右柱
-    ctx.fillRect(x - 10, groundY - 204, 68, 10);  // 横梁
-    ctx.fillStyle = '#4a5a90';
-    ctx.fillRect(x - 2, groundY - 190, 4, 190);
-    ctx.fillRect(x + 48, groundY - 190, 4, 190);
-    // 门楣匾额
-    ctx.fillStyle = '#3a2c4c';
-    ctx.fillRect(x + 2, groundY - 196, 50, 8);
+    ctx.fillStyle = '#b03040';
+    ctx.fillRect(x, groundY - 220, 7, 220);   // 左柱
+    ctx.fillRect(x + 40, groundY - 220, 7, 220); // 右柱
+    ctx.fillStyle = '#c84850';
+    ctx.fillRect(x + 2, groundY - 220, 3, 220);
+    ctx.fillRect(x + 42, groundY - 220, 3, 220);
+    // 笠木（上弧横梁）
+    ctx.fillStyle = '#c84850';
+    ctx.beginPath();
+    ctx.moveTo(x - 14, groundY - 226);
+    ctx.quadraticCurveTo(x + 23, groundY - 254, x + 61, groundY - 226);
+    ctx.lineTo(x + 61, groundY - 216);
+    ctx.quadraticCurveTo(x + 23, groundY - 244, x - 14, groundY - 216);
+    ctx.closePath();
+    ctx.fill();
+    // 岛木（下横梁）
+    ctx.fillStyle = '#b03040';
+    ctx.fillRect(x - 6, groundY - 196, 59, 5);
+    // 匾额
+    ctx.fillStyle = '#1c2440';
+    ctx.fillRect(x + 4, groundY - 190, 39, 10);
     ctx.fillStyle = '#e8d8a0';
     ctx.font = 'bold 9px "Yu Mincho","MS Mincho",serif';
     ctx.textAlign = 'center';
-    ctx.fillText('試練の門', x + 27, groundY - 189);
+    ctx.fillText('試練の門', x + 23, groundY - 182);
 
     if (open) {
       // 开启：门内泛光 + 符咒上浮
       ctx.globalAlpha = 0.35 + Math.sin(t * 0.15) * 0.12;
-      const g = ctx.createLinearGradient(x - 4, 0, x + 54, 0);
+      const g = ctx.createLinearGradient(x - 4, 0, x + 50, 0);
       g.addColorStop(0, 'rgba(160,200,255,0)');
       g.addColorStop(0.5, 'rgba(160,200,255,0.9)');
       g.addColorStop(1, 'rgba(160,200,255,0)');
       ctx.fillStyle = g;
-      ctx.fillRect(x - 4, groundY - 200, 58, 200);
+      ctx.fillRect(x - 4, groundY - 220, 54, 220);
       ctx.globalAlpha = 1;
       for (let i = 0; i < 4; i++) {
         const yy = groundY - 20 - ((t * 1.5 + i * 40) % 170);
         ctx.fillStyle = '#f5ead8';
-        ctx.fillRect(x + 10 + i * 10, yy, 8, 4);
+        ctx.fillRect(x + 8 + i * 10, yy, 8, 4);
       }
     }
   }
@@ -224,7 +237,7 @@ export class Waves {
     switch (this.phase) {
       case 'start': return '敵襲……';
       case 'fight': return `第 ${this.wave} / ${this.total} 波`;
-      case 'advance': return '前進 →';
+      case 'advance': return this.wave >= this.total ? '大門へ →' : '前進 →';
       case 'gatefight': return '門番「龍」';
       case 'gateopen': return '大門・開け！';
       case 'done': return '任務完了 · 按 R 重开';

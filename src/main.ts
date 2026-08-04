@@ -354,8 +354,8 @@ function tick(): void {
     }
   }
 
-  // 相机平滑跟随
-  const target = clamp(player.centerX - VIEW_W / 2, 0, stage.width - VIEW_W);
+  // 相机平滑跟随（塔内固定居中竞技场，独立 Boss 房）
+  const target = tower.active ? tower.camX : clamp(player.centerX - VIEW_W / 2, 0, stage.width - VIEW_W);
   world.camX += (target - world.camX) * 0.15;
 }
 
@@ -409,13 +409,21 @@ function render(): void {
   ctx.save();
   ctx.translate(shake.x, shake.y);
 
-  stage.drawBackground(ctx, world.camX, VIEW_W, VIEW_H, frameCount);
+  if (tower.active) {
+    tower.drawBackdrop(ctx, VIEW_W, VIEW_H, frameCount);
+  } else {
+    stage.drawBackground(ctx, world.camX, VIEW_W, VIEW_H, frameCount);
+  }
 
   // 世界坐标
   ctx.save();
   ctx.translate(-Math.round(world.camX), 0);
-  stage.drawGround(ctx);
-  waves.draw(ctx, stage.groundY, frameCount);
+  if (tower.active) {
+    tower.drawArena(ctx, world.camX, VIEW_W, stage.groundY, frameCount);
+  } else {
+    stage.drawGround(ctx);
+    waves.draw(ctx, stage.groundY, frameCount);
+  }
   for (const p of world.projectiles) p.draw(ctx);
   for (const a of world.arrows) a.draw(ctx);
   for (const o of world.orbs) o.draw(ctx);
