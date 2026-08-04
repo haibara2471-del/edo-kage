@@ -156,6 +156,14 @@ export class Waves {
     }
   }
 
+  /** debug：直接进入第 zi 个战区（0 起），跳过前面的波次并立即刷出该波。
+   *  修掉了"传送到战区但波次计数器不同步"的问题（旧做法只清场+移动，不触发波次）。 */
+  startAtZone(w: World, zi: number): void {
+    this.wave = zi; // startWave 内部会 ++ → 波次与战区对齐
+    this.barrierL = null;
+    this.startWave(w, zi);
+  }
+
   /** 结界绘制（世界坐标系下调用）：紫色封印墙 + 上浮符咒粒子 */
   draw(ctx: CanvasRenderingContext2D, groundY: number, t: number): void {
     for (const x of [this.barrierX, this.barrierL]) {

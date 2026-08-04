@@ -205,6 +205,7 @@ window.addEventListener('keydown', (e) => {
     const zi = Number(e.code.slice(-1)) - 1;
     if (ZONES[zi]) {
       world.enemies.length = 0; // 传送并清场
+      waves.startAtZone(world, zi); // 直接触发该战区波次（否则波次计数器不同步→"传送到第 N-1 波"）
       player.x = ZONES[zi].x0 + 60;
       player.y = 300;
       player.vx = 0;
