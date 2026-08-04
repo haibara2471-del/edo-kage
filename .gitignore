@@ -27,10 +27,14 @@ Thumbs.db
 .claude/
 
 # RL training artifacts
+best_model.zip
+evaluations.npz
 ppo_*.zip
 ppo_*_vecnormalize.pkl
 *.onnx
 sim/analysis/*.json
+sim/rl/best_model.zip
+sim/rl/evaluations.npz
 __pycache__/
 *.pyc
 .pytest_cache/
