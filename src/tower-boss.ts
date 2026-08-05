@@ -17,7 +17,8 @@ export abstract class TowerBoss {
   onGround = false;
 
   hp: number;
-  readonly maxHp: number;
+  /** 可写：乐邦「狂野」进阶段时把上限调整为当前血量（血条同步收缩） */
+  maxHp: number;
 
   state: string = 'idle';
   timer = 0;

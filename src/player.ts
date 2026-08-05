@@ -86,6 +86,8 @@ export class Player {
   god = false;       // 开发者无敌（?debug=1 按 G）
   poisonTimer = 0;   // 蛊毒：持续掉血 + 减速
   pull: { x: number } | null = null; // 钟馗钩拉拽目标 x（钩使位置），拉到身边即清
+  stun = 0;          // 眩晕帧数（乐邦一分雨累计 6 次）：期间无法行动
+  lebronMark = 0;    // 父爱印记剩余帧（带印记时对乐邦伤害 -40%，头顶显示）
 
   get rect(): Rect {
     return { x: this.x, y: this.y, w: this.w, h: this.h };
@@ -200,12 +202,20 @@ export class Player {
     if (this.vampTimer > 0) this.vampTimer--;
     if (this.vampCd > 0) this.vampCd--;
     if (this.coyote > 0) this.coyote--;
+    if (this.lebronMark > 0) this.lebronMark--;
     if (this.poisonTimer > 0) {
       this.poisonTimer--;
       if (this.poisonTimer % 30 === 0) this.dot(1);
     }
 
     const { stage, input, effects } = w;
+
+    // 眩晕（乐邦一分雨累计 6 次）：无法行动，纯等
+    if (this.stun > 0) {
+      this.stun--;
+      integrate(this, stage);
+      return;
+    }
 
     // 钟馗钩拉拽：被拽向钩使当前位置，到身边停住（玩家反馈：拉到身边而非漂移冲过头）
     if (this.pull !== null) {
@@ -469,6 +479,16 @@ export class Player {
       ctx.globalAlpha = 0.25 + Math.sin(this.t * 0.2) * 0.08;
       ctx.fillStyle = '#5aa040';
       ctx.fillRect(this.x - 2, this.y - 4, this.w + 4, this.h + 4);
+      ctx.globalAlpha = 1;
+    }
+
+    // 父爱印记（乐邦认父）：头顶粉心提示，带印记时对乐邦伤害 -40%
+    if (this.lebronMark > 0 && this.state !== 'dead') {
+      ctx.globalAlpha = 0.75 + Math.sin(this.t * 0.2) * 0.2;
+      ctx.fillStyle = '#ff9ac8';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('父愛', this.centerX, this.y - 12);
       ctx.globalAlpha = 1;
     }
 

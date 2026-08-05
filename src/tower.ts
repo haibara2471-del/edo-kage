@@ -2,6 +2,7 @@ import { Boss } from './boss';
 import { KyoshiroBoss } from './boss-kyoshiro';
 import { MaiBoss } from './boss-mai';
 import { MusashiBoss } from './boss-musashi';
+import { LebronBoss } from './boss-lebron';
 import type { World } from './world';
 
 /** 塔竞技场：每层独立物理位置（2800+ 塔区，穿过大门真正"再往前走"），左墙可见石墙，右墙即舞台尽头 */
@@ -9,18 +10,19 @@ const FLOOR_ARENAS = [
   { L: 3340, R: 3660 },  // 第1层 真龙（320px）
   { L: 3700, R: 4020 },  // 第2层 橘右京（320px）
   { L: 4060, R: 4380 },  // 第3层 不知火舞（320px）
-  { L: 4420, R: 4740 },  // 第4层 宫本武藏（320px，之前误压成 220px）
+  { L: 4420, R: 4740 },  // 第4层 宫本武藏（320px）
+  { L: 4780, R: 5100 },  // 第5层 乐邦·摊母私（塔顶，320px）
 ];
-const FLOOR_NAMES = ['真龍', '橘右京', '不知火舞', '宮本武藏'];
+const FLOOR_NAMES = ['真龍', '橘右京', '不知火舞', '宮本武藏', '樂邦·攤母私'];
 
 /**
  * Boss 塔·千刃の試練：杀戮尖塔式逐层 Boss 挑战。
  * HP/气跨层保留 + 每层开始回 20；死亡从当前层重开（回满）。
- * 层序：真龙(1) → 橘右京(2) → 不知火舞(3) → 宫本武藏(4)=塔顶。
+ * 层序：真龙(1) → 橘右京(2) → 不知火舞(3) → 宫本武藏(4) → 乐邦·摊母私(5)=塔顶。
  */
 export class Tower {
   floor = 0; // 0-based
-  readonly total = 4;
+  readonly total = 5;
   active = false;
   state: 'enter' | 'fight' | 'done' = 'enter';
   announce = 0;
@@ -86,8 +88,10 @@ export class Tower {
       w.enemies.push(new KyoshiroBoss(cx, gy - 34));
     } else if (this.floor === 2) {
       w.enemies.push(new MaiBoss(cx, gy - 34));
-    } else {
+    } else if (this.floor === 3) {
       w.enemies.push(new MusashiBoss(cx, gy - 34));
+    } else {
+      w.enemies.push(new LebronBoss(cx, gy - 42)); // 第5层 塔顶
     }
 
     this.state = 'fight';
