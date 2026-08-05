@@ -12,7 +12,12 @@
 | **游戏窗口** | `src/` 玩法/手感/功能/玩家反馈、`DESIGN.md` 迭代日志、本地手动测试 | `sim/rl/` 训练配置、`sim/env.ts` reward（除非明确讨论） |
 | **RL 窗口** | `sim/env.ts` reward、`sim/rl/` 训练/分析/记录、`sim/ai-*.ts` | 玩家功能（除非明确讨论） |
 
-> 两个窗口共用同一个 `game/` 目录与 git 仓库。**避免同时改同一个文件**；共享文件如 `src/player.ts`（RL env 依赖）、`src/input.ts`（consumeDir 公共改动）改动时在提交信息里标"公共"。
+> **v0.48+ 双窗口分物理目录（git worktree）**：
+> - `game/` = **main 分支**（游戏窗口）
+> - `game-rl/` = **rl/dev 分支**（RL 窗口，worktree，位于 `../game-rl`）
+> - **src/ 单一事实源 = main**：RL 对 src/ 的必要 bug 修复（判定/obs）尽快 merge 回 main；sim/ 差异留在 rl/dev
+> - RL 侧每次训练前跑 `bash sync-main.sh`（merge main，保证 src/ 最新）
+> - merge 冲突仅 src/player.ts 可能（游戏手感 vs RL 判定），手动解决保留两边意图
 
 ---
 
