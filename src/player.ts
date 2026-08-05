@@ -21,9 +21,9 @@ export interface AttackSpec {
 }
 
 export const BLADE: AttackSpec[] = [
-  { startup: 4, activeEnd: 7,  end: 16, cancelFrom: 8,  cancelTo: 16, dmg: 5,  range: 30, kbx: 2,   kby: 0,  hitstun: 10 },
-  { startup: 5, activeEnd: 9,  end: 20, cancelFrom: 10, cancelTo: 20, dmg: 7,  range: 32, kbx: 3,   kby: -1, hitstun: 12 },
-  { startup: 8, activeEnd: 12, end: 28, cancelFrom: 99, cancelTo: 99, dmg: 12, range: 36, kbx: 6.5, kby: -6, hitstun: 20 },
+  { startup: 4, activeEnd: 7,  end: 16, cancelFrom: 8,  cancelTo: 16, dmg: 5,  range: 30, kbx: 0.5, kby: 0,  hitstun: 10 },
+  { startup: 5, activeEnd: 9,  end: 20, cancelFrom: 10, cancelTo: 20, dmg: 7,  range: 32, kbx: 1,   kby: -1, hitstun: 12 },
+  { startup: 8, activeEnd: 12, end: 28, cancelFrom: 99, cancelTo: 99, dmg: 12, range: 36, kbx: 2,   kby: -6, hitstun: 20 },
 ];
 
 const MOVE_MAX = 3.4;
@@ -32,6 +32,8 @@ const DJUMP_VEL = -10;
 const DASH_SPEED = 9;
 const DASH_TIME = 11;
 const DASH_CD = 300;      // 5 秒 CD：防止 AI/玩家 spam 无敌位移
+const PULL_SPEED = 9;     // 钟馗钩拉拽速度
+const PULL_STOP = 24;     // 拉到钩使身边（中心距）即停
 const SHURIKEN_COST = 10;
 const SHURIKEN_SPEED = 11;
 const THROW_CD = 12;
@@ -83,6 +85,7 @@ export class Player {
   t = 0;             // 动画时钟（逻辑帧递增）
   god = false;       // 开发者无敌（?debug=1 按 G）
   poisonTimer = 0;   // 蛊毒：持续掉血 + 减速
+  pull: { x: number } | null = null; // 钟馗钩拉拽目标 x（钩使位置），拉到身边即清
 
   get rect(): Rect {
     return { x: this.x, y: this.y, w: this.w, h: this.h };
@@ -201,6 +204,23 @@ export class Player {
     }
 
     const { stage, input, effects } = w;
+
+    // 钟馗钩拉拽：被拽向钩使当前位置，到身边停住（玩家反馈：拉到身边而非漂移冲过头）
+    if (this.pull !== null) {
+      const dx = this.pull.x - this.centerX;
+      if (Math.abs(dx) <= PULL_STOP) {
+        this.pull = null;
+        this.state = this.onGround ? 'idle' : 'air';
+        this.hitTimer = 0;
+        this.vx = 0;
+        this.vy = 0;
+      } else {
+        this.x += Math.sign(dx) * PULL_SPEED;
+        this.vy = Math.min(this.vy, -1.5); // 轻拽上扬，像被锁链拉得晃一下
+      }
+      integrate(this, stage);
+      return;
+    }
 
     // 受击硬直
     if (this.state === 'hit') {
