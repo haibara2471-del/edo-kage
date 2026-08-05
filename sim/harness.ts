@@ -52,6 +52,14 @@ class FakeInput {
     }
     return false;
   }
+  consumeDir(a: string): { consumed: boolean; dir: number } {
+    const i = this.buf.findIndex((p) => p.action === a && this.frame - p.frame <= 9);
+    if (i >= 0) {
+      this.buf.splice(i, 1);
+      return { consumed: true, dir: 0 }; // 假输入不捕获方向，用当前朝向（与 AI 输入一致）
+    }
+    return { consumed: false, dir: 0 };
+  }
   tick(): void {
     this.frame++;
   }
