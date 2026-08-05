@@ -46,17 +46,22 @@ export class Boss {
   private lastHitT = -99;
   private readonly dodgeBase: number;
   private readonly noPhase2: boolean;
+  /** 竞技场边界（Boss 左缘可达范围 [min, max]；右缘需 -w）。默认 RL 全场景。 */
+  private readonly arenaMin: number;
+  private readonly arenaMax: number;
 
   constructor(
     public x: number,
     public y: number,
-    opts: { hp?: number; dodge?: number; noPhase2?: boolean } = {},
+    opts: { hp?: number; dodge?: number; noPhase2?: boolean; arena?: { min: number; max: number } } = {},
   ) {
     // 难度参数：RL 课程用（弱化版 → 完全版），游戏本体用默认值
     this.maxHp = opts.hp ?? 200;
     this.hp = this.maxHp;
     this.dodgeBase = opts.dodge ?? 0.25;
     this.noPhase2 = opts.noPhase2 ?? false;
+    this.arenaMin = opts.arena?.min ?? 0;
+    this.arenaMax = opts.arena?.max ?? 2750; // RL 环境舞台宽
   }
 
   get rect(): Rect {
@@ -91,7 +96,13 @@ export class Boss {
     if (this.hitChain >= 3 || rand() < dodgeChance) {
       this.hitChain = 0;
       this.dodgeCd = 25;
-      this.x = clamp(this.x - dirX * 70, 0, 2750 - this.w);
+      // 残像步：朝击退反方向瞬移 70px。但若反方向会被结界挡住（闪出屏障再被拽回、
+      // 在角落反复闪现挨打），改为朝攻击方向闪进场内逃逸。边界用竞技场而非全场景。
+      const min = this.arenaMin;
+      const max = this.arenaMax - this.w;
+      let nx = this.x - dirX * 70;
+      if (nx < min || nx > max) nx = this.x + dirX * 70; // 反方向撞墙 → 掉头闪进场内
+      this.x = clamp(nx, min, max);
       this.vx = 0;
       this.state = 'idle';
       return false; // 闪掉了，无伤害
@@ -137,6 +148,12 @@ export class Boss {
     }
   }
 
+  /** 位移封装：integrate 只 clamp 到全场景，这里把 x 再限制在竞技场内（防残像/击退/飞踢闪出屏障） */
+  private move(stage: World['stage']): void {
+    integrate(this, stage);
+    this.x = clamp(this.x, this.arenaMin, this.arenaMax - this.w);
+  }
+
   update(w: World): void {
     this.t++;
     if (this.flash > 0) this.flash--;
@@ -149,14 +166,14 @@ export class Boss {
       this.deadTimer++;
       if (this.deadTimer < 24) {
         this.vx *= 0.85;
-        integrate(this, stage);
+        this.move(stage);
       }
       return;
     }
 
     if (this.state === 'hit') {
       this.timer--;
-      integrate(this, stage);
+      this.move(stage);
       if (this.timer <= 0) this.state = 'walk';
       return;
     }
@@ -179,7 +196,7 @@ export class Boss {
             this.atkCd = this.phase2 ? 30 : 44;
           }
         }
-        integrate(this, stage);
+        this.move(stage);
         return;
       }
 
@@ -199,12 +216,12 @@ export class Boss {
           this.timer = 22;
           this.atkCd = this.phase2 ? 28 : 40;
         }
-        integrate(this, stage);
+        this.move(stage);
         return;
 
       case 'rising':
         this.vy = Math.min(this.vy + 0.55, 13);
-        this.x = clamp(this.x + this.vx, 0, stage.width - this.w);
+        this.x = clamp(this.x + this.vx, this.arenaMin, this.arenaMax - this.w);
         this.y += this.vy;
         if (this.y + this.h >= stage.groundY) {
           this.y = stage.groundY - this.h;
@@ -282,7 +299,7 @@ export class Boss {
       }
     }
 
-    integrate(this, stage);
+    this.move(stage);
   }
 
   draw(ctx: CanvasRenderingContext2D): void {

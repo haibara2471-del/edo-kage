@@ -7,9 +7,28 @@ import { PlayerHittable } from './player-hittable';
 export function resolveCombat(w: World): void {
   const { player, enemies, projectiles, effects, codex } = w;
 
-  // 短刀 / 昇月斬 / 朧乱舞 命中
+  // 先快照玩家攻击判定（供下方刀光结算用）：若敌人攻击先命中，玩家进 hit 态后
+  // attackSpec()/getAttackHitbox() 会变 null；快照保证"同帧互拼 = 换血"（玩家反馈：
+  // 行进边挥砍同帧互拼敌人攻击被吃掉 → 看起来无敌）。
   const spec = player.attackSpec();
   const hb = player.getAttackHitbox();
+  const src = player.state === 'launcher' ? 'skillU' : player.state === 'flurry' ? 'skillH' : 'blade';
+
+  // 敌人攻击命中玩家：先结算，让同帧互拼时敌人的攻击也造成伤害+击退（玩家反馈#1）
+  for (const e of enemies) {
+    const eb = e.getAttackHitbox();
+    if (!eb) continue;
+    if (rectsOverlap(eb, player.rect)) {
+      if (e instanceof PlayerHittable) {
+        const as = e.player.attackSpec();
+        if (as) player.takeHit(as.dmg, e.player.facing, w);
+      } else {
+        player.takeHit(e.contactDamage, e.centerX < player.centerX ? 1 : -1, w);
+      }
+    }
+  }
+
+  // 短刀 / 昇月斬 / 朧乱舞 命中
   if (spec && hb) {
     for (const e of enemies) {
       if (e.dead || e.lastHitId === player.attackId) continue;
@@ -19,9 +38,6 @@ export function resolveCombat(w: World): void {
         if ('onHitConfirm' in player) (player as { onHitConfirm: () => void }).onHitConfirm(); // 命中回气
         player.applyVamp(spec.dmg); // 吸血 buff
         codex.mark(e.codexId);
-        const src =
-          player.state === 'launcher' ? 'skillU' :
-          player.state === 'flurry' ? 'skillH' : 'blade';
         w.lastHits.push({ src, dmg: spec.dmg });
         const cx = player.facing > 0 ? hb.x + hb.w : hb.x;
         effects.meleeHit(cx, e.centerY, spec.dmg, spec.heavy);
@@ -44,20 +60,6 @@ export function resolveCombat(w: World): void {
         effects.shurikenHit(p.x, p.y, p.dmg);
         if (died) effects.death(e.centerX, e.centerY);
         break;
-      }
-    }
-  }
-
-  // 敌人攻击命中玩家：普通敌人用 contactDamage；mirror 玩家用其攻击规格
-  for (const e of enemies) {
-    const eb = e.getAttackHitbox();
-    if (!eb) continue;
-    if (rectsOverlap(eb, player.rect)) {
-      if (e instanceof PlayerHittable) {
-        const as = e.player.attackSpec();
-        if (as) player.takeHit(as.dmg, e.player.facing, w);
-      } else {
-        player.takeHit(e.contactDamage, e.centerX < player.centerX ? 1 : -1, w);
       }
     }
   }

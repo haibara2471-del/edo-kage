@@ -133,7 +133,7 @@ if (AI_SPECTATE) {
         const cx = 2310 + (2750 - 2310) / 2;
         const { Boss } = await import('./boss');
         const { HookSoldier } = await import('./hooksoldier');
-        world.enemies.push(new Boss(cx + 100, stage.groundY - 40));
+        world.enemies.push(new Boss(cx + 100, stage.groundY - 40, { arena: { min: 2310 + 12, max: 2750 - 12 } }));
         world.enemies.push(new HookSoldier(cx - 120, stage.groundY - 34));
         world.enemies.push(new HookSoldier(cx + 220, stage.groundY - 34));
         waves.barrierL = 2310 + 12;
@@ -232,6 +232,36 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyC') codex.reset(); // 清空图鉴解锁（重测用）
 });
 
+/** 结界 / 塔竞技场：把玩家和所有敌人都夹进 [bL, bR]（null 表示该侧开放）。
+ *  结算前/后各调一次：防击退逃逸，也防 Boss 残像等瞬移在 combat 中闪出屏障。 */
+function clampBarriers(world: World, bL: number | null, bR: number | null): void {
+  const { player } = world;
+  if (bR !== null) {
+    if (player.x + player.w > bR) {
+      player.x = bR - player.w;
+      if (player.vx > 0) player.vx = 0;
+    }
+    for (const e of world.enemies) {
+      if (e.x + e.w > bR) {
+        e.x = bR - e.w;
+        if (e.vx > 0) e.vx = 0;
+      }
+    }
+  }
+  if (bL !== null) {
+    if (player.x < bL) {
+      player.x = bL;
+      if (player.vx < 0) player.vx = 0;
+    }
+    for (const e of world.enemies) {
+      if (e.x < bL) {
+        e.x = bL;
+        if (e.vx < 0) e.vx = 0;
+      }
+    }
+  }
+}
+
 function tick(): void {
   world.input.tick();
   frameCount++;
@@ -273,33 +303,12 @@ function tick(): void {
 
   player.update(world);
 
-  // 结界 / 塔竞技场：封锁左右（玩家和怪物都夹住，防止击退逃逸）
+  // 结界 / 塔竞技场：封锁左右（玩家和怪物都夹住，防止击退/瞬移逃逸）。
+  // 结算前夹一次，结算后再夹一次（Boss 残像/升龙等可能在 combat 中瞬移越界，
+  // 只夹一次会"闪出屏障→下一帧被拽回"，角落反复闪现挨打，玩家反馈）。
   const bL = tower.active ? tower.barrierL : waves.barrierL;
   const bR = tower.active ? tower.barrierR : waves.barrierX;
-  if (bR !== null) {
-    if (player.x + player.w > bR) {
-      player.x = bR - player.w;
-      if (player.vx > 0) player.vx = 0;
-    }
-    for (const e of world.enemies) {
-      if (e.x + e.w > bR) {
-        e.x = bR - e.w;
-        if (e.vx > 0) e.vx = 0;
-      }
-    }
-  }
-  if (bL !== null) {
-    if (player.x < bL) {
-      player.x = bL;
-      if (player.vx < 0) player.vx = 0;
-    }
-    for (const e of world.enemies) {
-      if (e.x < bL) {
-        e.x = bL;
-        if (e.vx < 0) e.vx = 0;
-      }
-    }
-  }
+  clampBarriers(world, bL, bR);
 
   for (const e of world.enemies) e.update(world);
   world.enemies = world.enemies.filter((e) => !e.removable);
@@ -317,6 +326,8 @@ function tick(): void {
   world.clouds = world.clouds.filter((c) => !c.dead);
 
   resolveCombat(world);
+  // 结算后再夹一次：Boss 残像/升龙等瞬移可能在 combat 中越界，立即拽回避免"闪出屏障"闪烁
+  clampBarriers(world, bL, bR);
 
   if (!tower.active) {
     waves.update(world);

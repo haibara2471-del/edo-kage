@@ -107,7 +107,7 @@ export class Waves {
     const cx = gx + 100;      // 3150：龙守在鸟居出口
     w.player.hp = Math.min(w.player.maxHp, w.player.hp + 20); // 守门战回复 20 血
     w.player.ki = Math.min(w.player.maxKi, w.player.ki + 20); // 同时回 20 气
-    w.enemies.push(new Boss(cx + 80, w.stage.groundY - 40));
+    w.enemies.push(new Boss(cx + 80, w.stage.groundY - 40, { arena: { min: this.barrierL, max: this.barrierX } }));
     w.enemies.push(new HookSoldier(cx - 120, w.stage.groundY - 34));
     w.enemies.push(new HookSoldier(cx + 180, w.stage.groundY - 34));
   }
