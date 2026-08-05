@@ -103,6 +103,8 @@ export function buildObs(w: World, waveOverride?: number, advanceOverride?: numb
     if (!e.dead) nearestDist = Math.min(nearestDist, Math.abs(e.centerX - p.centerX) / 1000);
   }
   obs.push(remaining, wave, enemiesLeft, enemiesRight, airCount, nearestDist, advance);
+  // 吸血状态（v0.52b，与 sim/env.ts 对齐）：CD 剩余比例 + buff 剩余比例
+  obs.push(p.vampCd / 480, p.vampTimer / 180);
 
   while (obs.length < OBS_SIZE) obs.push(0);
   return new Float32Array(obs.slice(0, OBS_SIZE));

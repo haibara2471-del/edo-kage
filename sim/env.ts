@@ -99,6 +99,16 @@ const CHASE_REWARD = 0.01;
  *  退化形式，双档搜索空间含单档。战斗期/推进期只在 advanceTarget>0 处切换，互不污染。 */
 const CHASE_REWARD_ADVANCE = 0.1;
 
+/** 吸血 reward（v0.52 重测）：按回血量给（heal × VAMP_REWARD），教模型低血线适时开吸血 buff。
+ * 预算精算（random 课程，σ≈5.5）：吸血耗 20 气≈3 次命中；一次 buff(180帧) 打出 ~40-80 伤 → 回血 28-56。
+ * 系数 0.1 → 一次回血 40 = +4；wave2 净收入 ~230，开 1-2 次占 1.3-2.6%（压预算线）。
+ * 关键：0.1 < 承伤惩罚 0.15 → "故意掉血再吸"仍亏（-0.15/点 > +0.1/点），不会鼓励换血刷 reward；
+ * 满血开 buff 回血量=0 → 无收益，自然学会"低血才开"。吸血需要打出伤害才回血 → 同时鼓励开了就输出。 */
+const VAMP_REWARD = 0.1;
+/** 吸血启动奖励（v0.52b）：非满血按吸血键即给。冷启动解法——模型从不按吸血键 → heal 恒 0
+ * → vampReward 恒 0 → reward 从没教过吸血。+3 引导探索动作本身；满血按无收益，仍学"低血才开"。 */
+const VAMP_ACTIVATE_REWARD = 3;
+
 function maxTicks(scenario: Scenario): number {
   switch (scenario) {
     case 'ashigaru': return 1800;
@@ -386,6 +396,17 @@ export class GameEnv {
     const taken = Math.max(0, this.prevPlayerHp - this.player.hp);
     const takenPenalty = taken * 0.15; // 承伤 0.03→0.15（v0.44b）：v0.44 回放证明 0.03 无避伤梯度（脸接90伤只亏2.7），5× 造梯度；去残血放大，残局不吓退
 
+    // 吸血 reward（v0.52）：按回血量给。唯一回血来源是吸血 buff（applyVamp），heal>0 即吸血效果。
+    const heal = Math.max(0, this.player.hp - this.prevPlayerHp);
+    const vampReward = heal * VAMP_REWARD;
+
+    // 吸血启动奖励（v0.52b）：打破冷启动——模型从不按吸血键，heal 恒 0、vampReward 恒 0，等于 reward 没加。
+    // 非满血按吸血键就给 +VAMP_ACTIVATE_REWARD，引导探索动作本身；满血按=无收益（仍学"低血才开"）。
+    // 预算：一次吸血回血 40 → +4（回血 reward）+ 启动 +3；wave2 净收入 ~230，开 1-2 次占 3-6%，略升但仍可控。
+    const vampActivated =
+      actionIdx === 10 && this.player.hp < this.player.maxHp && this.player.vampCd <= 0 && this.player.ki >= 20;
+    const vampActivateReward = vampActivated ? VAMP_ACTIVATE_REWARD : 0;
+
     const enemiesAlive = this.world.enemies.length;
     const killsNow = Math.max(0, this.prevEnemiesAlive - enemiesAlive);
     this.totalKills += killsNow;
@@ -413,7 +434,9 @@ export class GameEnv {
       takenPenalty +       // 承伤惩罚（v0.44b：0.03→0.15，无残血放大——造避伤梯度）
       -0.1 * frames +      // ★ 时间惩罚符号修复(v0.42)：v0.44 从 -0.05 提到 -0.1/帧（=-0.4/步），归一后不再形同虚设，逼 AI 终结而非拖延
       inactivityPenalty +  // 活跃惩罚：防站桩
-      chaseReward;         // 统一目标追踪（v0.46）：范围外带到目标攻击范围内
+      chaseReward +        // 统一目标追踪（v0.46）：范围外带到目标攻击范围内
+      vampReward +         // 吸血回血（v0.52）：教低血线适时开吸血，增强长周期续航
+      vampActivateReward;  // 吸血启动（v0.52b）：非满血按吸血键引导探索，打破冷启动
     let done = false;
 
     if (this.player.state === 'dead') {
@@ -623,6 +646,8 @@ export class GameEnv {
     }
     nearestDist = Math.min(1000, nearestDist) / 1000;
     obs.push(remaining, wave, enemiesLeft, enemiesRight, airCount, nearestDist, advance);
+    // 吸血状态（v0.52b）：CD 剩余比例 + buff 剩余比例。用尾部 2 个 padding 空位，42 维不变。
+    obs.push(p.vampCd / 480, p.vampTimer / 180);
 
     while (obs.length < OBS_SIZE) obs.push(0);
     return obs.slice(0, OBS_SIZE);
