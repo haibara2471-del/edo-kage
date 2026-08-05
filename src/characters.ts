@@ -1079,3 +1079,129 @@ export function drawMusashi(
 
   ctx.restore();
 }
+
+// ———————————————— 乐邦·摊母私（球王恶搞） ————————————————
+
+const LEBRON: Pal = {
+  cloth: '#d4a017', clothD: '#b8860b', shorts: '#5a3fa0',
+  skin: '#b8774a', shoes: '#e8e8f0', trim: '#8b0000',
+};
+const LEBRON_WHITE: Pal = Object.fromEntries(Object.keys(LEBRON).map((k) => [k, '#e8e8e8'])) as Pal;
+
+export interface LebronPose {
+  state: string;
+  t: number;
+  timer: number;
+  flash: number;
+  phase?: number;
+  mark?: number;
+  qijueHit?: number;
+  giant?: 'archer' | 'charger';
+}
+
+/** 乐邦·摊母私：金球衣紫短裤发带球王。含灌篮/摊手/撅屁股/虚影/霸王步/趴地喷黄演出 */
+export function drawLebron(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number,
+  facing: number, pose: LebronPose,
+): void {
+  const P = pose.flash > 0 ? LEBRON_WHITE : LEBRON;
+  const t = pose.t;
+  ctx.save();
+  ctx.translate(x + w / 2, y + h);
+  ctx.scale(facing, 1);
+
+  // 失败演出：面着地摔倒，屁股撅起 + 喷一摊黄色液体
+  if (pose.state === 'dead') {
+    ctx.fillStyle = '#ffd24a';
+    ctx.globalAlpha = 0.45;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 28, 9, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.rotate(-1.35); // 面朝下斜躺
+    r(ctx, -5, -20, 11, 22, P.shorts);
+    r(ctx, -4, -30, 9, 11, P.cloth);
+    r(ctx, -3, -39, 8, 10, P.skin);
+    ctx.restore();
+    return;
+  }
+
+  let bob = 0, lean = 0, legF = 0.1, legB = -0.1, armF = 0.3, armB = -0.35;
+  let holdBall = false, crown = false;
+  switch (pose.state) {
+    case 'walk': case 'recover': case 'hit': {
+      const c = t * 0.22;
+      legF = Math.sin(c) * 0.5; legB = -legF; bob = -Math.abs(Math.sin(c));
+      armF = 0.4 + Math.sin(c + 1) * 0.2; armB = -0.4 + Math.sin(c) * 0.2;
+      break;
+    }
+    case 'dunkWindup': lean = -0.18; legF = 0.5; legB = -0.7; armF = -0.5; armB = -0.5; bob = -3; holdBall = true; break;
+    case 'dunk': lean = 0.5; legF = -0.7; legB = 0.7; armF = -2.4; armB = 0.3; holdBall = true; break;
+    case 'father': lean = -0.12; legF = -0.1; legB = 0.1; armF = 0.35; armB = -0.35; break; // 背身撅屁股
+    case 'kneel': bob = -13; legF = -0.2; legB = 0.2; armF = -1.3; armB = 1.3; break;        // 摊手僵直
+    case 'team': lean = -0.1; legF = 0.4; legB = -0.5; armF = -1.5; armB = -1.5; break;
+    case 'qijue': lean = 0.6; legF = -0.8; legB = 0.9; armF = -2.3; armB = 0.4; break;       // 虚影冲拳
+    case 'win': { const c = t * 0.3; legF = Math.sin(c) * 0.6; legB = -legF; bob = -Math.abs(Math.sin(c)); armF = 1.2; armB = 1.2; crown = true; break; } // 霸王步+王冠
+    case 'fire': armF = -1.6; break;   // 弓手巨头
+    case 'charge': lean = 0.6; legF = -0.7; legB = 0.8; armF = -2; armB = -2; break;         // 冲撞巨头
+    default: bob = Math.sin(t * 0.05) * 0.8;
+  }
+
+  ctx.translate(0, bob);
+  ctx.rotate(lean);
+
+  // 腿（紫短裤 + 白鞋）
+  leg(ctx, -2.2, -18, legB, P.shorts, P.shoes);
+  leg(ctx, 2.2, -18, legF, P.shorts, P.shoes);
+
+  // 撅屁股（father 背身时）
+  if (pose.state === 'father') {
+    r(ctx, -8, -14, 8, 6, P.shorts);
+  }
+
+  // 躯干（金球衣 + 镶边 + 背号）
+  r(ctx, -7, -32, 14, 17, P.cloth);
+  r(ctx, -7, -32, 14, 3.5, P.clothD);
+  r(ctx, -7, -27, 14, 2, P.trim);
+  r(ctx, -2.5, -29, 5, 3.5, '#8b0000');
+
+  // 头 + 发带 + 王冠
+  r(ctx, -5, -41, 10, 9.5, P.skin);
+  r(ctx, -5, -41, 10, 2.5, P.trim);
+  if (crown) {
+    ctx.fillStyle = '#ffd24a';
+    ctx.fillRect(-5, -46, 10, 3);
+    for (let i = -4; i <= 4; i += 4) ctx.fillRect(i - 1, -49, 2, 4);
+  }
+
+  // 前臂（dunk 握篮球）
+  ctx.save();
+  ctx.translate(3.5, -31);
+  ctx.rotate(armF);
+  r(ctx, -1.75, 0, 3.5, 11, P.clothD);
+  r(ctx, -1.5, 10, 3, 3, P.skin);
+  if (holdBall) {
+    ctx.fillStyle = '#e07030';
+    ctx.beginPath();
+    ctx.arc(0, 14, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#5a2a10';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, 9); ctx.lineTo(0, 19);
+    ctx.moveTo(-4.5, 11.5); ctx.lineTo(4.5, 16.5);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // 后臂
+  ctx.save();
+  ctx.translate(-3.5, -31);
+  ctx.rotate(armB);
+  r(ctx, -1.75, 0, 3.5, 11, P.clothD);
+  r(ctx, -1.5, 10, 3, 3, P.skin);
+  ctx.restore();
+
+  ctx.restore();
+}

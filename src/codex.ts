@@ -1,12 +1,12 @@
 import {
   drawAshigaru, drawFlyer, drawArcher, drawHookSoldier, drawBruiser, drawShaman, drawBoss,
-  drawKyoshiro, drawMai, drawMusashi,
+  drawKyoshiro, drawMai, drawMusashi, drawLebron,
 } from './characters';
 import type { Input } from './input';
 
 export type CodexId =
   | 'ashigaru' | 'archer' | 'hook' | 'bruiser' | 'shaman' | 'crow' | 'bat' | 'boss'
-  | 'kyoshiro' | 'mai' | 'musashi';
+  | 'kyoshiro' | 'mai' | 'musashi' | 'lebron' | 'giant';
 
 interface Entry {
   id: CodexId;
@@ -100,6 +100,14 @@ const ENTRIES: Entry[] = [
   {
     id: 'musashi', jp: '宮本武藏', cn: '二天一流', hp: 280, atk: 12,
     flavor: ['神速突刺带无敌帧。', '奥义前摇很长——', '跑出范围等他舞完。'],
+  },
+  {
+    id: 'lebron', jp: '樂邦·攤母私', cn: '球王（塔顶）', hp: 300, atk: 20,
+    flavor: ['三阶段，免疫控制不吃硬直。', '认父撅屁股——绕到他面前躲印记。', '一分雨累计中 6 次会眩晕，', '七脏诀是虚影，瞬身可躲。'],
+  },
+  {
+    id: 'giant', jp: '巨頭', cn: '流窜抱团', hp: 15, atk: 2,
+    flavor: ['乐邦召唤的俩帮手：', '一个射箭、一个冲撞。', '血量只有 5%，优先清掉。'],
   },
 ];
 
@@ -300,6 +308,12 @@ export class Codex {
             break;
           case 'musashi':
             drawMusashi(ctx, -12, -21, 24, 42, 1, { state: 'idle', t, timer: 0, flash: 0 });
+            break;
+          case 'lebron':
+            drawLebron(ctx, -12, -21, 24, 42, 1, { state: 'idle', t, timer: 0, flash: 0 });
+            break;
+          case 'giant':
+            drawLebron(ctx, -13, -20, 26, 40, 1, { state: 'walk', t, timer: 0, flash: 0 });
             break;
           default:
             drawFlyer(ctx, -9, -6, 18, 12, 1, e.id, t, 'circle', 0);

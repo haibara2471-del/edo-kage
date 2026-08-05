@@ -32,7 +32,7 @@ let input: Input = new Input();
 const humanInput = input;
 let aiInput: AiInput | null = null;
 const effects = new Effects();
-const stage = new Stage(4740); // 第三波后是鸟居+塔区域（RL 环境仍用默认 2750）
+const stage = new Stage(5140); // 第三波后是鸟居+塔区域，塔第5层（乐邦）在 4780-5100（RL 环境仍用默认 2750）
 const player = new Player();
 // 玩家反馈#5：飞镖方向锁定"按下瞬间的朝向"（先按镖再转身不反向）
 humanInput.setFacingSource(() => player.facing);
@@ -218,8 +218,8 @@ window.addEventListener('keydown', (e) => {
       world.camX = clamp(player.centerX - VIEW_W / 2, 0, stage.width - VIEW_W);
     }
   }
-  // 4/5/6/7：塔层跳转（真龙/橘右京/不知火舞/宫本武藏）
-  if (e.code === 'Digit4' || e.code === 'Digit5' || e.code === 'Digit6' || e.code === 'Digit7') {
+  // 4/5/6/7/8：塔层跳转（真龙/橘右京/不知火舞/宫本武藏/乐邦·摊母私）
+  if (e.code === 'Digit4' || e.code === 'Digit5' || e.code === 'Digit6' || e.code === 'Digit7' || e.code === 'Digit8') {
     const fi = Number(e.code.slice(-1)) - 4;
     world.enemies.length = 0;
     waves.enabled = false;
