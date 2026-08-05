@@ -12,6 +12,7 @@ const WINDUP_TIME = 18;
 const RECOVER_TIME = 40;
 const HOOK_CD = 140;
 const HOOK_SPEED = 9;
+const LAUNCH_IMMUNE = 40; // 被击飞后的起身免疫窗口（防击飞无限连）
 
 /** 鉤使（钟馗钩）：中距离甩锁链钩，命中把玩家拽到他面前挨打。解法：瞬身穿钩/跳过/拉近距离 */
 export class HookSoldier {
@@ -33,6 +34,7 @@ export class HookSoldier {
   flash = 0;
   lastHitId = 0;
   deadTimer = 0;
+  launchImmune = 0;  // 被击飞后的起身免疫（防无限连）
   t = 0;
 
   constructor(
@@ -60,10 +62,16 @@ export class HookSoldier {
       this.vy = kby;
       return true;
     }
+    // 霸体：甩钩前摇不被打断（玩家反馈：钩使无抵抗力）+ 被击飞后的起身免疫窗口（防无限连）。
+    // 造成伤害但不受控制，仍可被击杀；收招（recover）无霸体，是唯一反击窗口
+    if (this.launchImmune > 0 || this.state === 'windup') {
+      return false;
+    }
     this.state = 'hit';
     this.timer = hitstun;
     this.vx = dirX * kbx;
     this.vy = kby;
+    if (kby <= -5) this.launchImmune = LAUNCH_IMMUNE; // 被击飞 → 起身免疫窗口
     return false;
   }
 
@@ -74,6 +82,7 @@ export class HookSoldier {
   update(w: World): void {
     this.t++;
     if (this.flash > 0) this.flash--;
+    if (this.launchImmune > 0) this.launchImmune--;
 
     const { stage, player } = w;
 

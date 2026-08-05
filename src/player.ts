@@ -4,6 +4,7 @@ import { integrate } from './physics';
 import { Projectile, WaterOrb } from './projectile';
 import { drawNinja, drawSlashFx } from './characters';
 import type { World } from './world';
+import type { Effects } from './effects';
 
 /** 短刀三段连击帧数据（单位：1/60 秒 tick） */
 export interface AttackSpec {
@@ -167,6 +168,25 @@ export class Player {
     this.attackId++;
   }
 
+  /** 起跳 / 二段跳（普通跳跃与后摇跳跃取消共用）。返回是否成功起跳。 */
+  private tryJump(effects: Effects): boolean {
+    if (this.onGround || this.coyote > 0) {
+      this.vy = JUMP_VEL;
+      this.onGround = false;
+      this.coyote = 0;
+      this.airJumps = 1;
+      effects.puff(this.centerX, this.y + this.h);
+      return true;
+    }
+    if (this.airJumps > 0) {
+      this.vy = DJUMP_VEL;
+      this.airJumps--;
+      effects.ring(this.centerX, this.y + this.h - 6);
+      return true;
+    }
+    return false;
+  }
+
   update(w: World): void {
     this.t++;
     if (this.state === 'dead') return;
@@ -244,19 +264,9 @@ export class Player {
       return;
     }
 
-    // 跳跃 / 二段跳（攻击中不可）
+    // 跳跃 / 二段跳（攻击中不可，攻击后摇可取消见下）
     if (!attacking && input.consume('jump')) {
-      if (this.onGround || this.coyote > 0) {
-        this.vy = JUMP_VEL;
-        this.onGround = false;
-        this.coyote = 0;
-        this.airJumps = 1;
-        effects.puff(this.centerX, this.y + this.h);
-      } else if (this.airJumps > 0) {
-        this.vy = DJUMP_VEL;
-        this.airJumps--;
-        effects.ring(this.centerX, this.y + this.h - 6);
-      }
+      this.tryJump(effects);
     }
 
     // 昇月斬（U）：挑空起手式，可接朧乱舞/空中三段
@@ -302,22 +312,32 @@ export class Player {
       effects.ring(this.centerX, this.y + this.h - 6);
     }
 
-    // 短刀连击
+    // 短刀连击 + 后摇取消（玩家反馈：后摇太长，判定结束后可被移动/跳跃打断）
     if (!attacking) {
       if (input.consume('attack')) this.startAttack(1);
     } else {
       const spec = BLADE[this.attackStage - 1];
       this.attackTimer++;
-      // 取消窗口内接下一段
-      if (
-        this.attackStage < 3 &&
-        this.attackTimer >= spec.cancelFrom &&
-        this.attackTimer <= spec.cancelTo &&
-        input.consume('attack')
-      ) {
-        this.startAttack(this.attackStage + 1);
-      } else if (this.attackTimer >= spec.end) {
-        this.state = this.onGround ? 'idle' : 'air';
+      // 判定框消失后进入后摇：可取消收招（中断机制）。判定期间保持出手承诺，不可取消
+      if (this.attackTimer > spec.activeEnd) {
+        // 跳跃打断后摇 → 起跳/二段跳（需有可用跳跃，与普通跳跃一致）
+        if (input.consume('jump') && this.tryJump(effects)) {
+          this.state = 'air';
+        } else if (
+          this.attackStage < 3 &&
+          this.attackTimer >= spec.cancelFrom &&
+          this.attackTimer <= spec.cancelTo &&
+          input.consume('attack')
+        ) {
+          // 连招接下一段：优先于移动打断，行进间连招不受影响
+          this.startAttack(this.attackStage + 1);
+        } else if (move !== 0) {
+          // 移动打断 → 解除后摇：地面进跑动、空中恢复操控
+          this.state = this.onGround ? 'run' : 'air';
+          this.facing = move;
+        } else if (this.attackTimer >= spec.end) {
+          this.state = this.onGround ? 'idle' : 'air';
+        }
       }
     }
 

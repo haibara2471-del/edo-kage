@@ -12,6 +12,7 @@ const WINDUP_TIME = 18;
 const THRUST_TIME = 8;
 const RECOVER_TIME = 26;
 const ATK_CD = 30;
+const LAUNCH_IMMUNE = 40; // 被击飞后的起身免疫窗口（防击飞无限连：落点/空中反复击飞）
 
 /** 足轻（长枪兵）：发现玩家 → 追击 → 蓄力突刺。正面长枪判定比短刀长，教玩家绕后/跳跃 */
 export class Enemy {
@@ -33,6 +34,7 @@ export class Enemy {
   flash = 0;         // 受击白闪
   deadTimer = 0;
   lastHitId = 0;     // 玩家 attackId，防止一段攻击重复命中
+  launchImmune = 0;  // 被击飞后的起身免疫（防无限连）
   t = 0;             // 动画时钟
 
   constructor(
@@ -68,10 +70,16 @@ export class Enemy {
       this.vy = kby;
       return true;
     }
+    // 霸体：突刺前摇/判定任何攻击不打断（只能躲开再打收招）+ 被击飞后的起身免疫窗口
+    // （玩家反馈：击飞连招落点反复击飞、钩使/足轻无抵抗力）。造成伤害但不受控制，仍可被击杀
+    if (this.launchImmune > 0 || this.state === 'windup' || this.state === 'thrust') {
+      return false;
+    }
     this.state = 'hit';
     this.timer = hitstun;
     this.vx = dirX * kbx;
     this.vy = kby;
+    if (kby <= -5) this.launchImmune = LAUNCH_IMMUNE; // 被击飞 → 起身免疫窗口
     return false;
   }
 
@@ -91,6 +99,7 @@ export class Enemy {
 
     this.t++;
     if (this.flash > 0) this.flash--;
+    if (this.launchImmune > 0) this.launchImmune--;
 
     if (this.state === 'dead') {
       this.deadTimer++;
