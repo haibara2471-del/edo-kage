@@ -119,7 +119,9 @@ export class Player {
     return {
       x: this.facing > 0 ? this.x + this.w : this.x - spec.range,
       y: this.y + 4,
-      w: spec.range,
+      // facing 朝左时右缘 +1px：rectsOverlap 严格 `>`，玩家左缘与敌人左缘贴齐（完全重叠）时
+      // `0 > 0` 为 false 判定打不中 → 墙角卡死。回放确认：facing=-1 逼敌到 x=0 贴边反复攻击打不死残敌。
+      w: spec.range + (this.facing < 0 ? 1 : 0),
       h: 26,
     };
   }

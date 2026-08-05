@@ -81,6 +81,24 @@ export const ACTIONS: string[][] = [
 
 const OBS_SIZE = 42;
 
+/** 统一目标追踪（v0.46）：把 AI 带到目标攻击范围内，范围内归零交战自由。
+ *  CHASE_RADIUS：目标（最近敌人）进入 300px（对齐 src/enemy.ts AGGRO_RANGE）追踪 reward 归零；
+ *  路标目标（清场后 advanceTarget）半径=0，走到才停、到点刷下一波。
+ *  CHASE_REWARD：范围外朝目标净靠近 +0.02/px、远离 -0.02/px。
+ *  v0.46d：0.005 是苍蝇肉但对推进无感（推进段无战斗收益兜底，纯追踪 +1.3 被时间惩罚淹没）。
+ *  0.02 账本：边界 300 下 waves 敌人 400px 走近到 300px 只 100px=+2（0.005 的 4 倍），
+ *  占总收入 <2% 仍在引导级；推进段 260px=+5.2 看是否够到感知阈值。
+ *  ★ 0.03 教训：走近 355px=+10.7 ≈ 击杀 15，模型把"贴到 300px"当目标 → 弓+钩崩。
+ *  红线：战斗 reward（伤害/击杀/承伤/时间/活跃/通关）不动，只动追踪 K。 */
+const CHASE_RADIUS = 300;
+const CHASE_REWARD = 0.01;
+/** 推进期（路标）追踪系数——一套追踪体系、按目标分档（v0.46f，σ 采样校准）：
+ *  采样 random 课程真实 σ=5.5。战斗期 K=0.01 → "走近到 300px"归一化信号 0.17σ（安全方向指引，
+ *  不主导战斗；0.02=0.34σ 已在主导边缘，0.03 崩弓+钩）。推进期清场后无战斗收益兜底，
+ *  K=0.1 → 走完 260px 差异 3.4σ、终点 50px 仍 0.85σ（不走到底→半途）。单档是双档 K 相等时的
+ *  退化形式，双档搜索空间含单档。战斗期/推进期只在 advanceTarget>0 处切换，互不污染。 */
+const CHASE_REWARD_ADVANCE = 0.1;
+
 function maxTicks(scenario: Scenario): number {
   switch (scenario) {
     case 'ashigaru': return 1800;
@@ -118,6 +136,7 @@ export class GameEnv {
   private advanceWaves = 0;     // 本局总波数（waves=3，推进分支=2），清完最后一波才 done
   private wavesInEpisode = 0;   // 本局已刷波数（不依赖 waveIdx 编号，推进分支复用 wave1）
   private prevCx = 0;
+  private prevTargetAbs = 0; // 上一帧到统一目标（最近敌/路标）的距离（追踪 reward 用）
   private prevPlayerHp = 100;
   private prevEnemyTotalHp = 0;
   private prevEnemiesAlive = 0;
@@ -263,6 +282,7 @@ export class GameEnv {
     this.t = 0;
     this.advanceTarget = -1;
     this.prevCx = this.player.centerX;
+    this.prevTargetAbs = Math.abs(this.nearestEnemySignedDist());
     this.prevPlayerHp = this.player.hp;
     this.prevKi = this.player.ki;
     this.prevEnemyTotalHp = this.enemyTotalHp();
@@ -366,10 +386,19 @@ export class GameEnv {
 
     const inactivityPenalty = (enemiesAlive > 0 && windowDmg < 0.1) ? -0.03 : 0;
 
-    // 推进奖励（v0.45）：advance 阶段（清场后）右移给正奖励，教 AI 在"前进指示"下向右走触发下一波
-    let advanceReward = 0;
-    if (this.advanceTarget > 0) {
-      advanceReward = (this.player.centerX - this.prevCx) * 0.15;
+    // 统一目标追踪 reward（v0.46）：战斗期目标=最近敌人，清场后=路标（advanceTarget）。
+    // 目标在追踪半径外：朝目标净靠近 +0.03/px、远离 -0.03/px（把 AI 带到攻击范围内）；
+    // 进入半径后归零，进攻/躲避交给战斗 reward（承伤/伤害/击杀），追踪不干预交战。
+    // 路标目标半径=0：走到才停，到点刷下一波，然后目标自动切回新一波敌人。
+    let chaseReward = 0;
+    const targetSigned = this.advanceTarget > 0
+      ? this.advanceTarget - this.player.centerX   // 路标（清场后）
+      : this.nearestEnemySignedDist();             // 最近敌人（战斗期）
+    const targetAbs = Math.abs(targetSigned);
+    const chaseRadius = this.advanceTarget > 0 ? 0 : CHASE_RADIUS;
+    if (targetAbs > chaseRadius) {
+      const K = this.advanceTarget > 0 ? CHASE_REWARD_ADVANCE : CHASE_REWARD; // 推进期系数更大（无战斗收益兜底）
+      chaseReward = (this.prevTargetAbs - targetAbs) * K;
     }
 
     let reward =
@@ -378,7 +407,7 @@ export class GameEnv {
       takenPenalty +       // 承伤惩罚（v0.44b：0.03→0.15，无残血放大——造避伤梯度）
       -0.1 * frames +      // ★ 时间惩罚符号修复(v0.42)：v0.44 从 -0.05 提到 -0.1/帧（=-0.4/步），归一后不再形同虚设，逼 AI 终结而非拖延
       inactivityPenalty +  // 活跃惩罚：防站桩
-      advanceReward;       // 推进奖励：清场后右移 +0.15/px（260px≈+39）
+      chaseReward;         // 统一目标追踪（v0.46）：范围外带到目标攻击范围内
     let done = false;
 
     if (this.player.state === 'dead') {
@@ -389,7 +418,10 @@ export class GameEnv {
         // 清波后要求向右推进触发下一波（环境构成，推进奖励激励右移）。
         // ★ 必须用 advanceTarget<0 守卫只设一次——否则每步都重设，目标永远追不上（原 bug）
         if (this.advanceTarget < 0) {
-          this.advanceTarget = this.player.centerX + 260;
+          // 推进距离随机化（v0.46g）：真局推进 400-900px 随清场位置多变（zone 间距 300/960 不等），
+          // 固定 260px 教会"走固定距离"，出怪距离一变就失效。300~800 随机让模型学
+          // "推进到出怪点（距离可变）"，对出怪距离鲁棒。
+          this.advanceTarget = this.player.centerX + 300 + Math.floor(rand() * 500);
         }
       } else {
         reward += 50 + this.player.hp * 0.02; // 通关重赏 + 剩余血量加成
@@ -414,6 +446,7 @@ export class GameEnv {
       }
     }
     this.prevCx = this.player.centerX;
+    this.prevTargetAbs = targetAbs;
     this.prevState = this.player.state;
 
     this.prevPlayerHp = this.player.hp;
@@ -478,6 +511,22 @@ export class GameEnv {
     return d === 9999 ? 0 : d;
   }
 
+  /** 最近存活敌人的有符号水平距离（正=敌在右，负=敌在左）；无存活敌人返回 0（此时应已走清场→路标分支） */
+  private nearestEnemySignedDist(): number {
+    let best = 0;
+    let bestAbs = 1e9;
+    for (const e of this.world.enemies) {
+      if (e.dead) continue;
+      const d = e.centerX - this.player.centerX;
+      const ad = Math.abs(d);
+      if (ad < bestAbs) {
+        bestAbs = ad;
+        best = d;
+      }
+    }
+    return bestAbs === 1e9 ? 0 : best;
+  }
+
   private observe(): number[] {
     return this.observeFor(this.player, this.world.enemies);
   }
@@ -534,7 +583,7 @@ export class GameEnv {
           (e as { facing?: number }).facing ?? 0,
         );
       } else {
-        obs.push(0, 0, 0, 0, 0, 0, 0);
+        obs.push(0, 0, 0, 0, 0, 0, 0, 0);
       }
     }
 

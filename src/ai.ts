@@ -71,7 +71,7 @@ export function buildObs(w: World): Float32Array {
         e.facing ?? 0,
       );
     } else {
-      obs.push(0, 0, 0, 0, 0, 0, 0);
+      obs.push(0, 0, 0, 0, 0, 0, 0, 0);
     }
   }
 
