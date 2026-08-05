@@ -177,6 +177,7 @@ export class GameEnv {
     this.allowAdvance = false;
     this.advanceWaves = 0;
     this.wavesInEpisode = 0;
+    this.advanceTarget = -1; // reset 开头无条件重置（random 前置推进分支稍后可能设路标）
 
     if (this.scenario === 'ashigaru') {
       world.enemies.push(Enemy.ashigaru(this.player.x + 90, stage.groundY));
@@ -213,61 +214,23 @@ export class GameEnv {
       world.enemies.push(new Flyer(this.player.x + 160, stage.groundY - 220, 'crow', { passive: true }));
       // 不刷近战怪，逼它必须用镖
     } else if (this.scenario === 'random') {
-      // 随机课程：与真实波次对齐难度与种类（用户要求：数量/种类对齐、特定组合、
-      // 掺入真实 wave、教 advance 推进机制）。v0.45 教训：推进分支若掺 wave2 这种
-      // 硬编成会扭曲基础战斗（足轻×3 100%→0%），故 v0.45b 改为易版 wave1+wave1、占比 15%。
-      //  15% 推进分支（易）：wave1 → 清场 → 向右推进 260px → 再刷 wave1（只教 advance）
-      //  20% 单房间真实 wave1/2
-      //  15% 弓+钩 远程拉扯组（逼学镖/拉开）
-      //  10% 对空组（乌鸦+蝙蝠，逼学空中反制）
-      //  40% 随机混合 3~6 敌（对齐真实密度）
-      const gy = stage.groundY;
-      const px = this.player.x;
-      const r = rand();
-      if (r < 0.15) {
-        // 推进分支（v0.45b 易版）：清 wave1 → 向右推进 260px → 再刷 wave1（教 advance 机制）
-        this.allowAdvance = true;
+      // 随机课程 v0.46i（推进掺杂在各分支内部，不再独立分支）：
+      // 每局先抽一个战斗场景 C（单房间 wave1/2/3 / 弓+钩 / 对空 / 随机混合），再抽推进模式——
+      //  纯战斗（50%）/ 后置推进（25%，打完 C → 推进到出怪点 → 再刷一波 C）/ 前置推进（25%，先推进到
+      //  出怪点 → 刷 C → 打）。让模型学会"找战斗 / 打完跑路"，推进是战斗流程的一部分而非孤立分支。
+      const pr = rand();
+      if (pr < 0.5) {
+        this.spawnCombat(); // 纯战斗：无推进
+      } else if (pr < 0.75) {
+        this.allowAdvance = true; // 后置推进：打 C → 清场 → 路标 → 再刷一波 C
         this.advanceWaves = 2;
-        this.spawnWave(1);
+        this.spawnCombat();
         this.wavesInEpisode = 1;
-      } else if (r < 0.35) {
-        this.spawnWave(rand() < 0.5 ? 1 : 2); // 单房间真实 wave1 / wave2
-      } else if (r < 0.5) {
-        const side = rand() < 0.5 ? -1 : 1;
-        world.enemies.push(new Archer(px + side * 300, gy - 34));
-        world.enemies.push(new HookSoldier(px + side * 430, gy - 34));
-        for (let i = 0; i < 2; i++) {
-          world.enemies.push(Enemy.ashigaru(px - side * (220 + i * 110), gy));
-        }
-      } else if (r < 0.6) {
-        const side = rand() < 0.5 ? -1 : 1;
-        world.enemies.push(new Flyer(px + side * 260, gy - 210, 'crow'));
-        world.enemies.push(new Flyer(px + side * 340, gy - 180, 'bat'));
-        world.enemies.push(Enemy.ashigaru(px - side * 200, gy));
       } else {
-        const count = 3 + Math.floor(rand() * 4); // 3..6（对齐真实波次密度）
-        const types = ['ashigaru', 'ashigaru', 'ashigaru', 'archer', 'hook', 'crow', 'bat', 'bruiser', 'shaman'] as const;
-        for (let i = 0; i < count; i++) {
-          const type = types[Math.floor(rand() * types.length)];
-          const side = rand() < 0.5 ? -1 : 1;
-          const dist = 220 + rand() * 380; // 220..600
-          const x = px + side * dist;
-          if (type === 'ashigaru') {
-            world.enemies.push(Enemy.ashigaru(x, gy));
-          } else if (type === 'archer') {
-            world.enemies.push(new Archer(x, gy - 34));
-          } else if (type === 'hook') {
-            world.enemies.push(new HookSoldier(x, gy - 34));
-          } else if (type === 'crow') {
-            world.enemies.push(new Flyer(x, gy - 200 - rand() * 60, 'crow'));
-          } else if (type === 'bat') {
-            world.enemies.push(new Flyer(x, gy - 170 - rand() * 50, 'bat'));
-          } else if (type === 'bruiser') {
-            world.enemies.push(new Bruiser(x, gy - 46));
-          } else if (type === 'shaman') {
-            world.enemies.push(new Shaman(x, gy - 32));
-          }
-        }
+        this.allowAdvance = true; // 前置推进：先走到路标（出怪点）→ 刷 C → 打。开局无敌人，教"找战斗"
+        this.advanceWaves = 1;
+        this.advanceTarget = this.player.centerX + 300 + Math.floor(rand() * 500);
+        this.wavesInEpisode = 0;
       }
     } else if (this.scenario === 'mirror') {
       // Self-play：主玩家 vs 镜像玩家（由固定 ONNX 模型控制）
@@ -280,9 +243,10 @@ export class GameEnv {
     }
 
     this.t = 0;
-    this.advanceTarget = -1;
     this.prevCx = this.player.centerX;
-    this.prevTargetAbs = Math.abs(this.nearestEnemySignedDist());
+    this.prevTargetAbs = Math.abs(
+      this.advanceTarget > 0 ? this.advanceTarget - this.player.centerX : this.nearestEnemySignedDist(),
+    );
     this.prevPlayerHp = this.player.hp;
     this.prevKi = this.player.ki;
     this.prevEnemyTotalHp = this.enemyTotalHp();
@@ -318,6 +282,48 @@ export class GameEnv {
       E.push(new Archer(px - 320, gy - 34));
       E.push(new Bruiser(px + 260, gy - 46));
       E.push(new Shaman(px + 400, gy - 32));
+    }
+  }
+
+  /** random 课程：抽一个随机战斗场景刷怪（单房间 wave1/2/3 / 弓+钩 / 对空 / 混合 3~6 敌） */
+  private spawnCombat(): void {
+    const stage = this.world.stage;
+    const px = this.player.centerX;
+    const gy = stage.groundY;
+    const E = this.world.enemies;
+    const r = rand();
+    if (r < 0.30) {
+      this.spawnWave([1, 2, 3][Math.floor(rand() * 3)]); // 单房间真实 wave1/2/3（30%，wave2/3 各 10%）
+    } else if (r < 0.45) {
+      const side = rand() < 0.5 ? -1 : 1;
+      E.push(new Archer(px + side * 300, gy - 34));
+      E.push(new HookSoldier(px + side * 430, gy - 34));
+      for (let i = 0; i < 2; i++) E.push(Enemy.ashigaru(px - side * (220 + i * 110), gy));
+    } else if (r < 0.70) {
+      // 多目标混合对空（v0.46k 25%）：2 乌鸦+蝙蝠+2 足轻（地面+空中混合），练"多目标威胁优先级"。
+      // 回放证据：模型会打纯乌鸦（shurikenOnly 100%），但 air/wave2 混合场景把乌鸦当低优先级忽略 → 被磨死。
+      const side = rand() < 0.5 ? -1 : 1;
+      E.push(new Flyer(px + side * 260, gy - 210, 'crow'));
+      E.push(new Flyer(px - side * 300, gy - 190, 'crow'));
+      E.push(new Flyer(px + side * 340, gy - 180, 'bat'));
+      E.push(Enemy.ashigaru(px - side * 200, gy));
+      E.push(Enemy.ashigaru(px + side * 200, gy));
+    } else {
+      const count = 3 + Math.floor(rand() * 4); // 3..6（对齐真实波次密度）
+      const types = ['ashigaru', 'ashigaru', 'ashigaru', 'archer', 'hook', 'crow', 'bat', 'bruiser', 'shaman'] as const;
+      for (let i = 0; i < count; i++) {
+        const type = types[Math.floor(rand() * types.length)];
+        const side = rand() < 0.5 ? -1 : 1;
+        const dist = 220 + rand() * 380; // 220..600
+        const x = px + side * dist;
+        if (type === 'ashigaru') E.push(Enemy.ashigaru(x, gy));
+        else if (type === 'archer') E.push(new Archer(x, gy - 34));
+        else if (type === 'hook') E.push(new HookSoldier(x, gy - 34));
+        else if (type === 'crow') E.push(new Flyer(x, gy - 200 - rand() * 60, 'crow'));
+        else if (type === 'bat') E.push(new Flyer(x, gy - 170 - rand() * 50, 'bat'));
+        else if (type === 'bruiser') E.push(new Bruiser(x, gy - 46));
+        else if (type === 'shaman') E.push(new Shaman(x, gy - 32));
+      }
     }
   }
 
@@ -439,7 +445,7 @@ export class GameEnv {
         if (this.scenario === 'waves') {
           this.spawnWave(this.waveIdx + 1);
         } else {
-          this.spawnWave(1); // 推进分支：再刷一波 easy wave1
+          this.spawnCombat(); // random 课程：再刷一波随机战斗场景（v0.46i 推进掺杂在各分支内）
         }
         this.wavesInEpisode++;
         this.prevEnemyTotalHp = this.enemyTotalHp();
