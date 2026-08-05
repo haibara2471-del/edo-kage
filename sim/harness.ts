@@ -160,6 +160,7 @@ function launcherJuggle(): Result {
   player.x = 400;
   player.y = stage.groundY - player.h;
   const e = Enemy.ashigaru(player.x + 24, stage.groundY);
+  e.atkCd = 999; // 霸体后：前摇/突刺不可被打断，测试目标是「非攻击态敌人可被昇月斬挑空」
   world.enemies.push(e);
   for (let i = 0; i < 3; i++) step(world);
   input.tap('skillU');
