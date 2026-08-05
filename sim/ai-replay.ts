@@ -213,6 +213,10 @@ async function main(): Promise<void> {
       const out = await session.run({ obs: new ort.Tensor('float32', obs, [1, OBS_SIZE]) });
       const a = Number(out.action.data[0]);
       driver.apply(a);
+      // 吸血动作单帧追踪（v0.52b）：60 帧采样会漏掉单帧吸血，这里单独打日志
+      if (a === 10) {
+        console.log(`  [吸血] f=${f} hp=${player.hp}/${player.maxHp} ki=${player.ki} cd=${player.vampCd}`);
+      }
       if (f % 60 === 0) {
         const es = world.enemies.map((e) => `${e.codexId}@${e.x.toFixed(0)}/${(e as { hp: number }).hp}`).join(' ');
         console.log(
