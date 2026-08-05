@@ -91,6 +91,9 @@ function main(): void {
 
   console.log(`[平推 600帧] 玩家HP=${player.hp} 受击次数=${hits.length} 受击详情=${JSON.stringify(hits.slice(0, 6))}`);
   console.log(`  敌人剩余=${world.enemies.length} 敌人突刺判定命中帧=${enemyThrusts} 玩家state=${player.state}`);
+  if (world.enemies.length > 0) {
+    console.log(`  敌HP=${world.enemies.map((e) => e.hp).join(',')} 敌位置=${world.enemies.map((e) => e.x.toFixed(0)).join(',')} 玩家位置=${player.x.toFixed(0)}`);
+  }
   const stunlocked = hits.length === 0;
   console.log(stunlocked
     ? '  结论：玩家全程无伤 —— 平推成立（敌人攻击被打断，永远打不中）'

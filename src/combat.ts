@@ -77,8 +77,10 @@ export function resolveCombat(w: World): void {
       }
       player.takeHit(a.dmg, dir, w);
       if (a.pull) {
-        player.vx = dir * 10;
-        player.vy = -2;
+        // 钟馗钩：拉向钩使当前位置（玩家反馈#3）。player.update 里追踪拉拽、
+        // 到钩使身边停住，不再给速度冲量漂移过头（玩家反馈：人物会漂移）
+        const t = a.pullTarget && !a.pullTarget.dead ? a.pullTarget : null;
+        player.pull = t ? { x: t.centerX } : null;
       }
     }
   }
