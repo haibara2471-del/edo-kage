@@ -68,6 +68,14 @@ export class Enemy {
       this.vy = kby;
       return true;
     }
+    // 突刺前摇/判定霸体：出招不被打断（玩家反馈：平推迎面会被刺中，只能躲开再打收招）。
+    // 轻攻击（kby>-5）无效，重击/挑空（kby≤-5，如第三段、昇月斬）可破霸体——玩家有技能型反制。
+    // 仍掉血、仍可被击杀；收招（recover）无霸体，是唯一反击窗口
+    if ((this.state === 'windup' || this.state === 'thrust') && kby > -5) {
+      this.vx = 0;
+      this.vy = 0;
+      return false;
+    }
     this.state = 'hit';
     this.timer = hitstun;
     this.vx = dirX * kbx;

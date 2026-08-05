@@ -295,7 +295,11 @@ export class Boss {
             return;
           }
         }
-        this.vx = adx > 40 ? this.facing * speed : 0;
+        // 保持攻击距离：贴脸（连击步进/击退/飞踢被挤到角落贴墙）→ 后撤拉开，
+        // 否则朝前的判定框 [x-range, x] 与贴墙玩家严格 `>` 不重叠，连击永远空挥
+        if (adx > 40) this.vx = this.facing * speed;
+        else if (adx < 30) this.vx = -this.facing * speed;
+        else this.vx = 0;
       }
     }
 
