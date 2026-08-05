@@ -25,8 +25,9 @@ function stateCode(s: string): number {
   return ({ idle: 1, chase: 2, windup: 3, thrust: 4, recover: 5, hit: 6, telegraph: 7, dive: 8, climb: 9, aim: 10, combo: 11, dashWindup: 12, dashKick: 13, rising: 14, sweepWindup: 15, sweep: 16 } as Record<string, number>)[s] ?? 0;
 }
 
-/** 42 维观测（镜像 sim/env.ts observe()） */
-export function buildObs(w: World): Float32Array {
+/** 42 维观测（镜像 sim/env.ts observe()）。
+ * 浏览器端没有 wave/advance 状态，默认填 0/-1；评估工具（sim/ai-*.ts）可传真实值。 */
+export function buildObs(w: World, waveOverride?: number, advanceOverride?: number): Float32Array {
   const p = w.player;
   const obs: number[] = [
     p.x / 2750, p.y / 540, p.vx / 10, p.vy / 10,
@@ -95,9 +96,8 @@ export function buildObs(w: World): Float32Array {
   const enemiesRight = w.enemies.some((e) => !e.dead && e.centerX >= p.centerX) ? 1 : 0;
   const airCount = Math.min(5, w.enemies.filter((e) => !e.dead && e.centerY < p.centerY - 80).length) / 5;
   const remaining = Math.min(10, w.enemies.length) / 10;
-  // 浏览器端没有 wave/advance 状态，填 0；训练环境会填入真实值
-  const wave = 0;
-  const advance = -1;
+  const wave = waveOverride ?? 0;
+  const advance = advanceOverride ?? -1;
   let nearestDist = 1;
   for (const e of w.enemies) {
     if (!e.dead) nearestDist = Math.min(nearestDist, Math.abs(e.centerX - p.centerX) / 1000);

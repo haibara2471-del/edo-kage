@@ -204,7 +204,12 @@ async function main(): Promise<void> {
     driver.tick();
     const isBoss = world.enemies.some((e) => e.codexId === 'boss');
     if (f % (isBoss ? 2 : 4) === 0) {
-      const obs = buildObs(world);
+      // 与训练 env.ts observe() 对齐：waves 场景传真实 advanceTarget（wave 训练恒 0，防 OOD）
+      const obs = buildObs(
+        world,
+        undefined,
+        key === 'waves' ? (advanceTarget > 0 ? (advanceTarget - player.centerX) / 1000 : -1) : undefined,
+      );
       const out = await session.run({ obs: new ort.Tensor('float32', obs, [1, OBS_SIZE]) });
       const a = Number(out.action.data[0]);
       driver.apply(a);

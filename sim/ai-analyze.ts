@@ -218,7 +218,13 @@ async function runEpisode(
     driver.tick();
     const isBoss = world.enemies.some((e) => e.codexId === 'boss');
     if (f % (isBoss ? 2 : 4) === 0) {
-      const obs = buildObs(world);
+      // 与训练 env.ts observe() 对齐：waves 场景传真实 advanceTarget，其余默认。
+      // 注意 wave 特征训练恒为 0（random 课程非 waves 场景），评估也保持 0 防 OOD。
+      const obs = buildObs(
+        world,
+        undefined,
+        key === 'waves' ? (advanceTarget > 0 ? (advanceTarget - player.centerX) / 1000 : -1) : undefined,
+      );
       const out = await session.run({ obs: new ort.Tensor('float32', obs, [1, OBS_SIZE]) });
       const a = Number(out.action.data[0]);
       driver.apply(a);
