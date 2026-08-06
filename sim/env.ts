@@ -109,6 +109,15 @@ const VAMP_REWARD = 0.1;
  * → vampReward 恒 0 → reward 从没教过吸血。+3 引导探索动作本身；满血按无收益，仍学"低血才开"。 */
 const VAMP_ACTIVATE_REWARD = 3;
 
+/** 波次结算（v0.54）：每波清场后按剩余血量结算。
+ * HP_HEALTH=60 健康线（以上给奖励），HP_DANGER=30 不健康线（以下扣惩罚）。
+ * K_HEALTH=0.2（健康奖励温和）、K_DANGER=1.0（不健康惩罚明确）。
+ * 预算：waves 总收入 ~600，三波累计惩罚 ~-34 ≈ 6%（可控）。 */
+const HP_HEALTH = 60;
+const HP_DANGER = 30;
+const K_HEALTH = 0.2;
+const K_DANGER = 1.0;
+
 function maxTicks(scenario: Scenario): number {
   switch (scenario) {
     case 'ashigaru': return 1800;
@@ -443,7 +452,19 @@ export class GameEnv {
       reward -= 50; // 死亡重罚
       done = true;
     } else if (enemiesAlive === 0) {
+      // 波次结算（v0.54）：每波清场后按剩余血量给结算 reward。
+      // 健康线以上（hp≥HP_HEALTH）高出给奖励，不健康线以下（hp≤HP_DANGER）低出扣惩罚。
+      // 目标：教模型 wave2 少掉血、低血进下一波要受罚（残血进 wave3 是当前 waves 4/10 主因）。
+      // 预算（waves 单局总收入 ~600）：健康奖励 hp90→+6（温和），不健康惩罚 hp13→-17（死亡惩罚-50 的 1/3），
+      // 三波累计惩罚 ~-34 占总 ~6%（可控，不压灭 dense 战斗信号）。
       if (this.allowAdvance && this.wavesInEpisode < this.advanceWaves) {
+        // 波次结算（v0.54）：中间波清场后按剩余血量结算——教模型少掉血、低血进下一波受罚。
+        // 只给中间波：最后一波有通关重赏（+50+hp×0.02），不叠加。纯战斗单波场景（无推进）
+        // 走通关重赏，结算不生效——不影响基础战斗 reward 分布。
+        const hp = this.player.hp;
+        if (hp >= HP_HEALTH) reward += (hp - HP_HEALTH) * K_HEALTH;
+        else if (hp <= HP_DANGER) reward -= (HP_DANGER - hp) * K_DANGER;
+
         // 清波后要求向右推进触发下一波（环境构成，推进奖励激励右移）。
         // ★ 必须用 advanceTarget<0 守卫只设一次——否则每步都重设，目标永远追不上（原 bug）
         if (this.advanceTarget < 0) {
